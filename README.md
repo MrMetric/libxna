@@ -12,6 +12,7 @@ Assuming that Logo2.xnb is the same as the one in Terraria, this will do the fol
 * determine that the file is compressed
 * decompress the data and verify that it is an image
 * save the data to a PNG image file (Logo2.png)
+
 The XNB2WAV function takes the same arguments (XNB name and output name).
 
 If you want to get the dimensions of the image:
