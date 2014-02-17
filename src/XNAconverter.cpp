@@ -1,4 +1,4 @@
-/*
+/**
 This file uses code from MonoGame. The license is as follows:
 
 Microsoft Public License (Ms-PL)
@@ -304,7 +304,7 @@ void XNAconverter::XNB2WAV(std::string xnb, std::string wav)
 		throw std::string("BinaryLib header version does not match compiled library version");
 	}
 
-	BinaryReader *br = new BinaryReader(xnb);
+	BinaryReader* br = new BinaryReader(xnb);
 	std::string type = "";
 	try
 	{
@@ -474,7 +474,7 @@ void XNAconverter::XNB2PNG(std::string xnb, std::string png, uint32_t& width, ui
 	delete br;
 
 	// from http://www.labbookpages.co.uk/software/imgProc/libPNG.html
-	FILE *fp = fopen(png.c_str(), "wb");
+	FILE* fp = fopen(png.c_str(), "wb");
 	if(fp == NULL)
 	{
 		throw MAKESTR("Error opening " << png << " for writing");

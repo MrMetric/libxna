@@ -5,3 +5,6 @@ convertxnb.layout
 
 # Compiled object files go in this directory
 obj
+
+# Where I put stuff
+downloads

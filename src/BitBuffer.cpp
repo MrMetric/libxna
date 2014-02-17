@@ -48,6 +48,10 @@
 
 BitBuffer::BitBuffer(const uint8_t* inBuf, uint_fast32_t inlen)
 {
+	this->buffer = 0;
+	this->bitsleft = 0;
+	this->inpos = 0;
+
 	this->inBuf = inBuf;
 	this->inlen = inlen;
 }

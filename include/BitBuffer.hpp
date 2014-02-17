@@ -14,9 +14,9 @@ class BitBuffer
 		uint8_t ReadByte();
 		uint32_t ReadUInt32();
 
-		uint32_t buffer = 0;
-		uint8_t bitsleft = 0;
-		uint_fast32_t inpos = 0;
+		uint32_t buffer;
+		uint8_t bitsleft;
+		uint_fast32_t inpos;
 		uint_fast32_t inlen;
 		const uint8_t* inBuf;
 };
