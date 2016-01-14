@@ -184,7 +184,6 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 
 				if(writeDec)
 				{
-					bw->Close();
 					delete bw;
 				}
 
@@ -223,7 +222,6 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 				br->Close();
 				delete br;
 
-				bw->Close();
 				delete bw;
 
 				remove(outputDec.c_str());
@@ -242,7 +240,6 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 
 			if(writeDec)
 			{
-				bw->Close();
 				delete bw;
 			}
 
@@ -253,7 +250,6 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 		else if(writeDec)
 		{
 			bw->WriteBytes(xnbData, decompressedSize, decompressedSize);
-			bw->Close();
 			delete bw;
 		}
 		br->ChangeFile(xnbData, decompressedSize);
@@ -370,7 +366,6 @@ void XNAconverter::XNB2WAV(std::string xnb, std::string wav)
 	br->Close();
 	delete br;
 
-	bw->Close();
 	delete bw;
 }
 

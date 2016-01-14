@@ -3,8 +3,6 @@ libxna.depend
 libxna.layout
 convertxnb.layout
 
-# Compiled object files go in this directory
+# compiled stuff
+bin
 obj
-
-# Where I put stuff
-downloads
