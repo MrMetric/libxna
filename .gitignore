@@ -1,7 +1,6 @@
 # Automatically created by Code::Blocks
-libxna.depend
-libxna.layout
-convertxnb.layout
+*.depend
+*.layout
 
 # compiled stuff
 bin

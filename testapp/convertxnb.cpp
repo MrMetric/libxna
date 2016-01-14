@@ -9,7 +9,7 @@ enum Mode
 	none,
 	decompress,
 	wav,
-	png
+	png,
 };
 
 int main(int argc, char** argv)
@@ -96,13 +96,13 @@ int main(int argc, char** argv)
 	if(inputFile == "")
 	{
 		std::cerr << "No input file specified\n";
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	if(mode == none)
 	{
 		std::cerr << "No mode specified\n";
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	if(outputFile == "")
@@ -128,8 +128,8 @@ int main(int argc, char** argv)
 	{
 		if(mode == decompress)
 		{
-			BinaryReader* br = new BinaryReader(inputFile);
-			std::string type = "";
+			BinaryReader br(inputFile);
+			std::string type;
 			XNAconverter::readXNB(br, type, outputFile);
 			std::cout << "XNB type: " << XNAconverter::getTypeName(type) << "\n";
 		}
@@ -142,13 +142,13 @@ int main(int argc, char** argv)
 			XNAconverter::XNB2PNG(inputFile, outputFile);
 		}
 	}
-	catch(std::string e)
+	catch(const std::string& e)
 	{
 		std::cout << "Error converting \"" << inputFile << "\" (" << e << ")\n";
-		return 1;
+		return EXIT_FAILURE;
 	}
 
-	std::cout << "Data saved to \"" << outputFile << "\"\n";
+	std::cout << "saved " << outputFile << "\n";
 
-	return 0;
+	return EXIT_SUCCESS;
 }

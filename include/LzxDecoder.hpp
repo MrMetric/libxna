@@ -27,7 +27,7 @@
 class LzxDecoder
 {
 	public:
-		LzxDecoder(const uint_fast16_t window_bits);
+		explicit LzxDecoder(const uint_fast16_t window_bits);
 		~LzxDecoder();
 		void Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* outBuf, uint_fast32_t outLen);
 
@@ -55,7 +55,6 @@ class LzxDecoder
 		uint32_t			state_block_length;				// uncompressed length of this block
 		uint32_t			state_block_remaining;			// uncompressed bytes still left to decode
 
-		// yo dawg i herd u liek arrays so we put arrays in ur arrays so u can array while u array
 		uint16_t			state_PRETREE_table[(1 << PRETREE_TABLEBITS) + (PRETREE_MAXSYMBOLS << 1)];
 		uint8_t				state_PRETREE_len[PRETREE_MAXSYMBOLS + LENTABLE_SAFETY];
 		uint16_t			state_MAINTREE_table[(1 << MAINTREE_TABLEBITS) + (MAINTREE_MAXSYMBOLS << 1)];

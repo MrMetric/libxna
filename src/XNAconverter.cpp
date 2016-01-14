@@ -40,6 +40,7 @@ purpose and non-infringement.
 
 #include "../include/XNAconverter.hpp"
 #include "../include/LzxDecoder.hpp"
+#include "../include/XNB.hpp"
 #include <string.h>
 #include <stdint.h>
 #include <malloc.h>
@@ -68,37 +69,35 @@ purpose and non-infringement.
 	@arg compressed	The compression flag is put in this variable
 	@arg fileLength	The file length is put in this variable
 */
-void XNAconverter::readHeader(BinaryReader *br, bool& compressed, uint32_t& fileLength)
+void XNAconverter::readHeader(BinaryReader& br, bool& compressed, uint32_t& fileLength)
 {
-	std::string format = br->ReadString(3);
+	std::string format = br.ReadString(3);
 	if(format.compare("XNB") != 0)
 	{
 		throw MAKESTR("Invalid format: " << format);
 	}
 
-	int8_t platform = br->ReadInt8();
+	int8_t platform = br.ReadInt8();
+	// can also be 'm' or 'x', but I do not know what those imply for the data
 	if(platform != 'w')
 	{
 		throw MAKESTR("Unhandled platform: " << (int)platform);
 	}
 
-	uint8_t xnaVersion = br->ReadUInt8();
+	uint8_t xnaVersion = br.ReadUInt8();
+	// 5 = XNA Game Studio 4.0
 	if(xnaVersion != 5)
 	{
 		throw MAKESTR("Unhandled version: " << (int)xnaVersion);
 	}
 
-	uint8_t flags = br->ReadUInt8();
-	if(flags != 0x00 && flags != 0x80)
-	{
-		throw MAKESTR("Unknown flags byte: " << (int)flags);
-	}
+	uint8_t flags = br.ReadUInt8();
 
-	compressed = (flags & 0x80) != 0;
-	fileLength = br->ReadInt32();
-	if(fileLength != br->fSize)
+	compressed = (flags & XNB::flag::compressed) != 0;
+	fileLength = br.ReadInt32();
+	if(fileLength != br.fSize)
 	{
-		throw MAKESTR("File length mismatch: " << fileLength << " should be " << br->fSize);
+		throw MAKESTR("File length mismatch: " << fileLength << " should be " << br.fSize);
 	}
 }
 
@@ -110,7 +109,7 @@ void XNAconverter::readHeader(BinaryReader *br, bool& compressed, uint32_t& file
 	@arg type		The type reader string will be put in this variable
 	@arg outputDec	The name of the decompressed XNB (if the input XNB is compressed). No file will be written if this is an empty string.
 */
-void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outputDec)
+void XNAconverter::readXNB(BinaryReader& br, std::string& type, std::string outputDec)
 {
 	bool compressed = false;
 	uint32_t fileLength = 0;
@@ -118,7 +117,7 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 	{
 		readHeader(br, compressed, fileLength);
 	}
-	catch(std::string e)
+	catch(const std::string& e)
 	{
 		throw MAKESTR("Invalid XNB header: " << e);
 	}
@@ -128,13 +127,13 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 	if(compressed) // TODO: decompress to memory
 	{
 		uint_fast32_t compressedSize = fileLength - 14; // 10 bytes (XNB header) + 4 bytes (decompressed size int)
-		uint_fast32_t decompressedSize = br->ReadUInt32();
+		uint_fast32_t decompressedSize = br.ReadUInt32();
 		BinaryWriter* bw = nullptr;
 		bool writeDec = (outputDec.compare("") != 0);
 		if(writeDec)
 		{
 			std::stringstream ss;
-			ss << br->fname.substr(0, br->fname.length() - 4); // TODO: check if file name has an extension
+			ss << br.fname.substr(0, br.fname.length() - 4); // TODO: check if file name has an extension
 			outputDec = ss.str() + "_dec.xnb";
 			bw = new BinaryWriter(outputDec, true);
 			bw->WriteString("XNBw"); // file format and platform
@@ -145,23 +144,22 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 		xnbData = new uint8_t[decompressedSize];
 		uint_fast32_t outPos = 0;
 
-		LzxDecoder* dec = new LzxDecoder(16); // window = 16 bits, window size = 65536 bytes
-		uint_fast32_t decodedBytes = 0;
+		LzxDecoder dec(16); // window = 16 bits, window size = 65536 bytes
 		uint_fast32_t pos = 0;
 		while(pos < compressedSize)
 		{
-			uint_fast8_t hi = br->ReadUInt8();
-			uint_fast8_t lo = br->ReadUInt8();
+			uint_fast8_t hi = br.ReadUInt8();
+			uint_fast8_t lo = br.ReadUInt8();
 			uint_fast16_t frame_size;
 			uint_fast16_t block_size;
 			if(hi == 0xFF)
 			{
 				hi = lo;
-				lo = br->ReadUInt8();
+				lo = br.ReadUInt8();
 				frame_size = (hi << 8) | lo;
 
-				hi = br->ReadUInt8();
-				lo = br->ReadUInt8();
+				hi = br.ReadUInt8();
+				lo = br.ReadUInt8();
 				block_size = (hi << 8) | lo;
 
 				pos += 5;
@@ -179,15 +177,12 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 			}
 			if(block_size > 0x10000 || frame_size > 0x10000)
 			{
-				br->Close();
-				delete br;
+				br.Close();
 
 				if(writeDec)
 				{
 					delete bw;
 				}
-
-				delete dec;
 
 				throw std::string("Error decompressing content data");
 			}
@@ -204,23 +199,20 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 				// TODO: do this without a loop
 				for(uint_fast32_t i = 0; i < block_size; ++i)
 				{
-					inBuf[i] = br->ReadUInt8();
+					inBuf[i] = br.ReadUInt8();
 				}
-				dec->Decompress(inBuf, block_size, outBuf, frame_size);
+				dec.Decompress(inBuf, block_size, outBuf, frame_size);
 				LzxDecoder::ArrayCopy(outBuf, 0, xnbData, outPos, frame_size);
 				outPos += frame_size;
 
-				delete inBuf;
-				delete outBuf;
+				delete[] inBuf;
+				delete[] outBuf;
 			}
-			catch(std::string e)
+			catch(const std::string& e)
 			{
 				std::string error = MAKESTR("Error while decompressing data (" << e << ")");
 
-				delete dec;
-
-				br->Close();
-				delete br;
+				br.Close();
 
 				delete bw;
 
@@ -230,13 +222,11 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 			}
 
 			pos += block_size;
-			decodedBytes += frame_size;
 		}
 
-		delete dec;
 		if(outPos != decompressedSize)
 		{
-			std::string error = MAKESTR("Decompression of " << br->fname << " failed: " << outPos << " should be " << decompressedSize + 10);
+			std::string error = MAKESTR("Decompression of " << br.fname << " failed: " << outPos << " should be " << decompressedSize + 10);
 
 			if(writeDec)
 			{
@@ -252,35 +242,35 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 			bw->WriteBytes(xnbData, decompressedSize, decompressedSize);
 			delete bw;
 		}
-		br->ChangeFile(xnbData, decompressedSize);
+		br.ChangeFile(xnbData, decompressedSize);
 	}
 	else
 	{
 		uint_fast32_t size = fileLength - 10;
-		xnbData = br->ReadBytes(size);
-		br->ChangeFile(xnbData, size);
+		xnbData = br.ReadBytes(size);
+		br.ChangeFile(xnbData, size);
 	}
 
-	uint32_t typeCount = br->Read7BitEncodedInt();
+	uint32_t typeCount = br.Read7BitEncodedInt();
 
-	type = br->ReadStringMS(); // get the first type reader
-	br->pos += 4; // skip the version number
+	type = br.ReadStringMS(); // get the first type reader
+	br.pos += 4; // skip the version number
 
 	// loop over the rest
 	for(uint_fast32_t t = 1; t < typeCount; ++t)
 	{
-		std::string ts = br->ReadStringMS();
-		//int32_t typeReaderVersion = br->ReadInt32();
-		br->pos += 4;
+		std::string ts = br.ReadStringMS();
+		//int32_t typeReaderVersion = br.ReadInt32();
+		br.pos += 4;
 	}
 
-	uint32_t sharedResourcesCount = br->Read7BitEncodedInt();
+	uint32_t sharedResourcesCount = br.Read7BitEncodedInt();
 	if(sharedResourcesCount != 0)
 	{
 		throw MAKESTR("Too many shared resources: " << sharedResourcesCount);
 	}
 
-	uint32_t unknown = br->Read7BitEncodedInt();
+	uint32_t unknown = br.Read7BitEncodedInt();
 	if(unknown != 1)
 	{
 		throw MAKESTR("Unknown byte is not 1 (" << unknown << ")");
@@ -293,20 +283,20 @@ void XNAconverter::readXNB(BinaryReader* br, std::string& type, std::string outp
 	@arg xnb The XNB file to read
 	@arg wav The WAV file to create
 */
-void XNAconverter::XNB2WAV(std::string xnb, std::string wav)
+void XNAconverter::XNB2WAV(const std::string& xnb, const std::string& wav)
 {
 	if(BINARYLIB_VERSION != BinaryLibUtil::version())
 	{
 		throw std::string("BinaryLib header version does not match compiled library version");
 	}
 
-	BinaryReader* br = new BinaryReader(xnb);
-	std::string type = "";
+	BinaryReader br(xnb);
+	std::string type;
 	try
 	{
 		readXNB(br, type);
 	}
-	catch(std::string e)
+	catch(const std::string& e)
 	{
 		throw MAKESTR("Error reading \"" << xnb << "\" (" << e << ")");
 	}
@@ -316,23 +306,23 @@ void XNAconverter::XNB2WAV(std::string xnb, std::string wav)
 		throw MAKESTR("Unhandled type reader: " << type);
 	}
 
-	uint32_t formatChunkSize = br->ReadUInt32();
+	uint32_t formatChunkSize = br.ReadUInt32();
 	if(formatChunkSize != 18)
 	{
 		throw MAKESTR("Wrong format chunk size: " << formatChunkSize);
 	}
 
-	uint16_t wFormatTag = br->ReadUInt16();
+	uint16_t wFormatTag = br.ReadUInt16();
 	if(wFormatTag != 1)
 	{
 		throw MAKESTR("Unhandled wav codec (must be PCM): " << wFormatTag);
 	}
 
-	uint16_t nChannels = br->ReadUInt16();
-	uint32_t nSamplesPerSec = br->ReadInt32();
-	uint32_t nAvgBytesPerSec = br->ReadInt32();
-	uint16_t nBlockAlign = br->ReadInt16();
-	uint16_t wBitsPerSample = br->ReadInt16();
+	uint16_t nChannels = br.ReadUInt16();
+	uint32_t nSamplesPerSec = br.ReadInt32();
+	uint32_t nAvgBytesPerSec = br.ReadInt32();
+	uint16_t nBlockAlign = br.ReadInt16();
+	uint16_t wBitsPerSample = br.ReadInt16();
 	if(nAvgBytesPerSec != (nSamplesPerSec * nChannels * (wBitsPerSample / 8)))
 	{
 		throw std::string("Average bytes per second number incorrect");
@@ -343,30 +333,27 @@ void XNAconverter::XNB2WAV(std::string xnb, std::string wav)
 		throw std::string("Block align number incorrect");
 	}
 
-	br->ReadInt16();
-	int_fast32_t dataChunkSize = br->ReadInt32();
+	br.ReadInt16();
+	int_fast32_t dataChunkSize = br.ReadInt32();
 
-	BinaryWriter *bw = new BinaryWriter(wav, false);
-	bw->WriteString("RIFF");
-	bw->WriteInt32(dataChunkSize + 36);
-	bw->WriteString("WAVEfmt ");
-	bw->WriteInt32(16);
-	bw->WriteUInt16(wFormatTag);
-	bw->WriteUInt16(nChannels);
-	bw->WriteUInt32(nSamplesPerSec);
-	bw->WriteUInt32(nAvgBytesPerSec);
-	bw->WriteUInt16(nBlockAlign);
-	bw->WriteUInt16(wBitsPerSample);
-	bw->WriteString("data");
-	bw->WriteInt32(dataChunkSize);
+	BinaryWriter bw(wav, false);
+	bw.WriteString("RIFF");
+	bw.WriteInt32(dataChunkSize + 36);
+	bw.WriteString("WAVEfmt ");
+	bw.WriteInt32(16);
+	bw.WriteUInt16(wFormatTag);
+	bw.WriteUInt16(nChannels);
+	bw.WriteUInt32(nSamplesPerSec);
+	bw.WriteUInt32(nAvgBytesPerSec);
+	bw.WriteUInt16(nBlockAlign);
+	bw.WriteUInt16(wBitsPerSample);
+	bw.WriteString("data");
+	bw.WriteInt32(dataChunkSize);
 
-	std::string dataChunk = br->ReadString(dataChunkSize);
-	bw->WriteString(dataChunk);
+	std::string dataChunk = br.ReadString(dataChunkSize);
+	bw.WriteString(dataChunk);
 
-	br->Close();
-	delete br;
-
-	delete bw;
+	br.Close();
 }
 
 /** XNB2PNG
@@ -374,7 +361,7 @@ void XNAconverter::XNB2WAV(std::string xnb, std::string wav)
 	@arg xnb	The XNB file to read
 	@arg wav	The PNG file to create
 */
-void XNAconverter::XNB2PNG(std::string xnb, std::string png)
+void XNAconverter::XNB2PNG(const std::string& xnb, const std::string& png)
 {
 	uint32_t tmp1;
 	uint32_t tmp2;
@@ -389,20 +376,20 @@ void XNAconverter::XNB2PNG(std::string xnb, std::string png)
 	@arg width	The image width is put in this variable
 	@arg height	The image height is put in this variable
 */
-void XNAconverter::XNB2PNG(std::string xnb, std::string png, uint32_t& width, uint32_t& height)
+void XNAconverter::XNB2PNG(const std::string& xnb, const std::string& png, uint32_t& width, uint32_t& height)
 {
 	if(BINARYLIB_VERSION != BinaryLibUtil::version())
 	{
 		throw std::string("BinaryLib header version does not match compiled library version");
 	}
 
-	BinaryReader *br = new BinaryReader(xnb);
-	std::string type = "";
+	BinaryReader br(xnb);
+	std::string type;
 	try
 	{
 		readXNB(br, type);
 	}
-	catch(std::string e)
+	catch(const std::string& e)
 	{
 		throw MAKESTR("Error reading \"" << xnb << "\" (" << e << ")");
 	}
@@ -412,7 +399,7 @@ void XNAconverter::XNB2PNG(std::string xnb, std::string png, uint32_t& width, ui
 		throw MAKESTR("Unhandled type reader: " << type);
 	}
 
-	int_fast32_t surfaceFormat = br->ReadInt32();
+	int_fast32_t surfaceFormat = br.ReadInt32();
 	switch(surfaceFormat) // TODO: convert other formats to RGBA8888
 	{
 		case SURFACEFORMAT_RGBA8888:
@@ -449,24 +436,23 @@ void XNAconverter::XNB2PNG(std::string xnb, std::string png, uint32_t& width, ui
 		}
 	}
 
-	width = br->ReadUInt32();
-	height = br->ReadUInt32();
+	width = br.ReadUInt32();
+	height = br.ReadUInt32();
 
 	// What is this?
-	uint32_t levelCount = br->ReadUInt32();
+	uint32_t levelCount = br.ReadUInt32();
 	if(levelCount != 1)
 	{
 		throw MAKESTR("Unhandled level count: " << levelCount);
 	}
 
-	uint32_t imageLength = br->ReadUInt32();
+	uint32_t imageLength = br.ReadUInt32();
 	char imageData[imageLength];
 	for(uint_fast32_t i = 0; i < imageLength; ++i)
 	{
-		imageData[i] = br->ReadUInt8();
+		imageData[i] = br.ReadUInt8();
 	}
-	br->Close();
-	delete br;
+	br.Close();
 
 	// from http://www.labbookpages.co.uk/software/imgProc/libPNG.html
 	FILE* fp = fopen(png.c_str(), "wb");
@@ -517,7 +503,7 @@ void XNAconverter::XNB2PNG(std::string xnb, std::string png, uint32_t& width, ui
 	free(row);
 }
 
-std::string XNAconverter::getTypeName(std::string type)
+std::string XNAconverter::getTypeName(const std::string& type)
 {
 	if(type.compare("Microsoft.Xna.Framework.Content.SoundEffectReader") == 0)
 	{

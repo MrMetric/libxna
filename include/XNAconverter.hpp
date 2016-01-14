@@ -14,14 +14,14 @@
 class XNAconverter
 {
 	public:
-		static void readHeader(BinaryReader *br, bool& compressed, uint32_t& fileLength);
-		static void readXNB(BinaryReader* br, std::string& type, std::string outputDec = "");
+		static void readHeader(BinaryReader& br, bool& compressed, uint32_t& fileLength);
+		static void readXNB(BinaryReader& br, std::string& type, std::string outputDec = "");
 
-		static void XNB2WAV(std::string xnb, std::string wav);
-		static void XNB2PNG(std::string xnb, std::string png);
-		static void XNB2PNG(std::string xnb, std::string png, uint32_t& width, uint32_t& height);
+		static void XNB2WAV(const std::string& xnb, const std::string& wav);
+		static void XNB2PNG(const std::string& xnb, const std::string& png);
+		static void XNB2PNG(const std::string& xnb, const std::string& png, uint32_t& width, uint32_t& height);
 
-		static std::string getTypeName(std::string type);
+		static std::string getTypeName(const std::string& type);
 };
 
 #endif // XNACONVERTER_H
