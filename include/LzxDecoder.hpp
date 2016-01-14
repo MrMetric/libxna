@@ -1,5 +1,4 @@
-#ifndef LZXDECODER_H
-#define LZXDECODER_H
+#pragma once
 
 #include <BinaryReader.hpp>
 #include <BinaryWriter.hpp>
@@ -73,5 +72,3 @@ class LzxDecoder
 		uint32_t			state_window_size;
 		uint32_t			state_window_posn;
 };
-
-#endif

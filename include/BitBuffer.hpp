@@ -1,5 +1,4 @@
-#ifndef BITBUFFER_H
-#define BITBUFFER_H
+#pragma once
 
 #include <BinaryReader.hpp>
 
@@ -20,5 +19,3 @@ class BitBuffer
 		uint_fast32_t inlen;
 		const uint8_t* inBuf;
 };
-
-#endif // BITBUFFER_H

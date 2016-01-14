@@ -1,5 +1,4 @@
-#ifndef XNACONVERTER_H
-#define XNACONVERTER_H
+#pragma once
 
 #include <BinaryReader.hpp>
 
@@ -23,5 +22,3 @@ class XNAconverter
 
 		static std::string getTypeName(const std::string& type);
 };
-
-#endif // XNACONVERTER_H
