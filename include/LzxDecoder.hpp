@@ -2,7 +2,7 @@
 
 #include <BinaryReader.hpp>
 #include <BinaryWriter.hpp>
-#include "../include/BitBuffer.hpp"
+#include "BitBuffer.hpp"
 
 #define MIN_MATCH					2
 #define MAX_MATCH					257
@@ -33,19 +33,17 @@ class LzxDecoder
 		static uint32_t position_base[51];
 		static uint8_t extra_bits[52];
 
-		static void ArrayCopy(const uint8_t* arrayIn, uint_fast32_t inStart, uint8_t* arrayOut, uint_fast32_t outStart, uint_fast32_t length);
-
 	private:
 		int32_t MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[], uint16_t table[]);
-		void ReadLengths(uint8_t lens[], uint32_t first, uint32_t last, BitBuffer *bitbuf);
-		uint32_t ReadHuffSym(uint16_t* table, uint8_t* lengths, uint32_t nsyms, uint32_t nbits, BitBuffer* bitbuf);
+		void ReadLengths(uint8_t lens[], uint32_t first, uint32_t last, BitBuffer& bitbuf);
+		uint32_t ReadHuffSym(uint16_t* table, uint8_t* lengths, uint32_t nsyms, uint8_t nbits, BitBuffer& bitbuf);
 
 		enum BLOCKTYPE
 		{
 			INVALID = 0,
 			VERBATIM = 1,
 			ALIGNED = 2,
-			UNCOMPRESSED = 3
+			UNCOMPRESSED = 3,
 		};
 		uint32_t			state_R0, state_R1, state_R2; 	// for the LRU offset system
 		uint16_t			state_main_elements;			// number of main tree elements

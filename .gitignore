@@ -1,6 +1,7 @@
 # Automatically created by Code::Blocks
 *.depend
 *.layout
+CppCheckResults.xml
 
 # compiled stuff
 bin

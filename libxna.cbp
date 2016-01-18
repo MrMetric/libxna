@@ -12,11 +12,18 @@
 				<Option working_dir="" />
 				<Option object_output="obj/Debug/" />
 				<Option type="2" />
-				<Option compiler="gcc" />
+				<Option compiler="clang" />
 				<Option createDefFile="1" />
 				<Compiler>
+					<Add option="-ftrapv" />
+					<Add option="-Weverything" />
 					<Add option="-g" />
+					<Add option="-fsanitize=undefined" />
+					<Add option="-Wno-old-style-cast" />
 				</Compiler>
+				<Linker>
+					<Add option="-lubsan" />
+				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option platforms="Unix;" />
@@ -28,7 +35,7 @@
 				<Option createDefFile="1" />
 				<Compiler>
 					<Add option="-fomit-frame-pointer" />
-					<Add option="-Os" />
+					<Add option="-O2" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -39,18 +46,20 @@
 			<Add option="-Wextra" />
 			<Add option="-Wall" />
 			<Add option="-std=c++14" />
-			<Add directory="/host/CPP/BinaryLib/include" />
+			<Add directory="../BinaryLib/include" />
 		</Compiler>
 		<Unit filename="include/BitBuffer.hpp" />
+		<Unit filename="include/Content.hpp" />
 		<Unit filename="include/LzxDecoder.hpp" />
-		<Unit filename="include/XNAconverter.hpp" />
 		<Unit filename="include/XNB.hpp" />
 		<Unit filename="src/BitBuffer.cpp" />
+		<Unit filename="src/Content.cpp" />
 		<Unit filename="src/LzxDecoder.cpp" />
-		<Unit filename="src/XNAconverter.cpp" />
+		<Unit filename="src/XNB.cpp" />
 		<Extensions>
 			<code_completion />
 			<debugger />
+			<envvars />
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

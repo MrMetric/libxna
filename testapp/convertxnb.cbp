@@ -10,11 +10,15 @@
 				<Option output="bin/Debug/convertxnb" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="clang" />
 				<Compiler>
+					<Add option="-ftrapv" />
+					<Add option="-Weverything" />
 					<Add option="-g" />
+					<Add option="-fsanitize=undefined" />
 				</Compiler>
 				<Linker>
+					<Add option="-lubsan" />
 					<Add directory="../../BinaryLib/bin/Debug" />
 					<Add directory="../bin/Debug" />
 				</Linker>

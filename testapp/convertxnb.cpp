@@ -1,154 +1,85 @@
-#include <XNAconverter.hpp>
 #include <BinaryReader.hpp>
 #include <BinaryWriter.hpp>
 #include <sstream>
 #include <iostream>
-
-enum Mode
-{
-	none,
-	decompress,
-	wav,
-	png,
-};
+#include <XNB.hpp>
+#include <Content.hpp>
+#include <png++/png.hpp>
 
 int main(int argc, char** argv)
 {
-	if(argc < 2)
+	if(argc <= 1)
 	{
-		argv[1] = (char*)"-h";
-	}
-	std::string firstArg(argv[1]);
-	if(firstArg == "--help" || firstArg == "-h" || firstArg == "-?")
-	{
-		std::cout << "Arguments:\n";
-		std::cout << " -i        Input file*\n";
-		std::cout << " -o        Output file\n";
-		std::cout << " -m        Conversion mode*\n";
-		std::cout << "             decompress\n";
-		std::cout << "             wav\n";
-		std::cout << "             png\n";
-		std::cout << "* = required\n";
-		std::cout << "\n";
-		std::cout << "If no output name is specified, the default for each mode is:\n";
-		std::cout << "  decompress: file.xnb → file_dec.xnb\n";
-		std::cout << "  wav:        file.xnb → file.wav\n";
-		std::cout << "  png:        file.xnb → file.png\n";
-		return 0;
+		std::cout << "usage: " << argv[0] << " <input file> [output file]\n";
+		return EXIT_FAILURE;
 	}
 
-	Mode mode = none;
-	std::string inputFile = "";
-	std::string outputFile = "";
-
-	for(int arg = 1; arg < argc; ++arg)
+	std::string filename(argv[1]);
+	std::string outname(argc > 2 ? argv[2] : "");
+	try
 	{
-		std::string argument(argv[arg]);
-		if(argument == "-")
+		BinaryReader reader(filename);
+		XNA::XNB::XNB xnb(reader);
+		std::shared_ptr<XNA::Content::ContentBase> content = xnb.objects[0];
+
+		std::string type_reader_name = content->get_type_reader_name();
+		if(type_reader_name == "Microsoft.Xna.Framework.Content.Texture2DReader")
 		{
-			// put no-value arguments here
+			std::shared_ptr<XNA::Content::Texture2D> tex = std::static_pointer_cast<XNA::Content::Texture2D>(content);
+			if(outname == "")
+			{
+				outname = filename + ".png";
+			}
+
+			std::vector<uint8_t> mip = tex->get_mip_data(0);
+			std::pair<uint32_t, uint32_t> mip_size = tex->get_mip_size(0);
+			uint32_t width = mip_size.first;
+			uint32_t height = mip_size.second;
+			png::image<png::rgba_pixel> image(width, height);
+			for(uint_fast32_t x = 0; x < width; ++x)
+			{
+				for(uint_fast32_t y = 0; y < height; ++y)
+				{
+					uint_fast32_t i = (y * width + x) * 4;
+					image.set_pixel(x, y, png::rgba_pixel(mip[i], mip[i + 1], mip[i + 2], mip[i + 3]));
+				}
+			}
+			image.write(outname);
+		}
+		else if(type_reader_name == "Microsoft.Xna.Framework.Content.SoundEffectReader")
+		{
+			std::shared_ptr<XNA::Content::Sound> sound = std::static_pointer_cast<XNA::Content::Sound>(content);
+			if(outname == "")
+			{
+				outname = filename + ".wav";
+			}
+
+			BinaryWriter writer(outname);
+			writer.WriteString("RIFF");
+			writer.WriteUInt32(sound->data.size() + 36);
+			writer.WriteString("WAVEfmt ");
+			writer.WriteUInt32(16);
+			writer.WriteUInt16(static_cast<uint16_t>(sound->format));
+			writer.WriteUInt16(sound->channel_count);
+			writer.WriteUInt32(sound->sample_rate);
+			writer.WriteUInt32(sound->average_byte_rate);
+			writer.WriteUInt16(sound->block_align);
+			writer.WriteUInt16(sound->bits_per_sample);
+			writer.WriteString("data");
+			writer.WriteUInt32(sound->data.size());
+			writer.WriteBytes(sound->data);
 		}
 		else
 		{
-			++arg;
-			std::string value;
-			try
-			{
-				value = std::string(argv[arg]);
-			}
-			catch(...)
-			{
-				std::cerr << "No value given for " << argument << "\n";
-				return 1;
-			}
-
-			if(argument == "-i")
-			{
-				inputFile = value;
-			}
-			else if(argument == "-o")
-			{
-				outputFile = value;
-			}
-			else if(argument == "-m")
-			{
-				if(value.compare("decompress") == 0)
-				{
-					mode = decompress;
-				}
-				else if(value.compare("wav") == 0)
-				{
-					mode = wav;
-				}
-				else if(value.compare("png") == 0)
-				{
-					mode = png;
-				}
-				else
-				{
-					std::cerr << "Invalid mode: " << value << "\n";
-					return 1;
-				}
-			}
+			throw ("unhandled type reader name: " + type_reader_name);
 		}
-	}
-
-	if(inputFile == "")
-	{
-		std::cerr << "No input file specified\n";
-		return EXIT_FAILURE;
-	}
-
-	if(mode == none)
-	{
-		std::cerr << "No mode specified\n";
-		return EXIT_FAILURE;
-	}
-
-	if(outputFile == "")
-	{
-		std::stringstream ss;
-		ss << inputFile.substr(0, inputFile.length() - 4);
-		if(mode == decompress)
-		{
-			ss << "_dec.xnb";
-		}
-		else if(mode == wav)
-		{
-			ss << ".wav";
-		}
-		else if(mode == png)
-		{
-			ss << ".png";
-		}
-		outputFile = ss.str();
-	}
-
-	try
-	{
-		if(mode == decompress)
-		{
-			BinaryReader br(inputFile);
-			std::string type;
-			XNAconverter::readXNB(br, type, outputFile);
-			std::cout << "XNB type: " << XNAconverter::getTypeName(type) << "\n";
-		}
-		else if(mode == wav)
-		{
-			XNAconverter::XNB2WAV(inputFile, outputFile);
-		}
-		else if(mode == png)
-		{
-			XNAconverter::XNB2PNG(inputFile, outputFile);
-		}
+		std::cout << filename << ": wrote " << outname << "\n";
 	}
 	catch(const std::string& e)
 	{
-		std::cout << "Error converting \"" << inputFile << "\" (" << e << ")\n";
+		std::cerr << filename << ": " << e << "\n";
 		return EXIT_FAILURE;
 	}
-
-	std::cout << "saved " << outputFile << "\n";
 
 	return EXIT_SUCCESS;
 }

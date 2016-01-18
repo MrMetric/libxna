@@ -58,25 +58,25 @@ BitBuffer::BitBuffer(const uint8_t* inBuf, uint_fast32_t inlen)
 
 void BitBuffer::EnsureBits(uint8_t bits)
 {
-	while(bitsleft < bits)
+	while(this->bitsleft < bits)
 	{
 		int lo = this->ReadByte();
 		int hi = this->ReadByte();
 		int amount2shift = sizeof(uint32_t)*8 - 16 - bitsleft;
-		buffer |= (uint32_t)(((hi << 8) | lo) << amount2shift);
-		bitsleft += 16;
+		this->buffer |= static_cast<uint32_t>(((hi << 8) | lo) << amount2shift);
+		this->bitsleft += 16;
 	}
 }
 
-uint32_t BitBuffer::PeekBits(uint8_t bits)
+uint32_t BitBuffer::PeekBits(uint8_t bits) const
 {
-	return (buffer >> ((sizeof(uint32_t)*8) - bits));
+	return (this->buffer >> ((sizeof(uint32_t)*8) - bits));
 }
 
 void BitBuffer::RemoveBits(uint8_t bits)
 {
-	buffer <<= bits;
-	bitsleft -= bits;
+	this->buffer <<= bits;
+	this->bitsleft -= bits;
 }
 
 uint32_t BitBuffer::ReadBits(uint8_t bits)
@@ -95,12 +95,11 @@ uint32_t BitBuffer::ReadBits(uint8_t bits)
 
 uint8_t BitBuffer::ReadByte()
 {
-	uint8_t ret = 0;
 	if(this->inpos < this->inlen)
 	{
-		ret = this->inBuf[this->inpos++];
+		return this->inBuf[this->inpos++];
 	}
-	return ret;
+	return 0;
 }
 
 uint32_t BitBuffer::ReadUInt32()
@@ -109,5 +108,5 @@ uint32_t BitBuffer::ReadUInt32()
 	uint8_t ml = this->ReadByte();
 	uint8_t mh = this->ReadByte();
 	uint8_t hi = this->ReadByte();
-	return (uint32_t)(hi << 24 | mh << 16 | ml << 8 | lo);
+	return static_cast<uint32_t>(hi << 24 | mh << 16 | ml << 8 | lo);
 }
