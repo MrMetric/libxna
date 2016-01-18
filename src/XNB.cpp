@@ -158,24 +158,9 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 
 		try
 		{
-			uint8_t* inBuf = new uint8_t[block_size];
-			uint8_t* outBuf = new uint8_t[frame_size];
-
-			// this gets the wrong data (possibly a problem with conversion from char to unsigned char)
-			//const char* inData = br->ReadString(block_size).c_str();
-			//memcpy(inBuf, inData, block_size);
-
-			// TODO: do this without a loop
-			for(uint_fast32_t i = 0; i < block_size; ++i)
-			{
-				inBuf[i] = reader.ReadUInt8();
-			}
-			dec.Decompress(inBuf, block_size, outBuf, frame_size);
-			std::copy_n(outBuf, frame_size, xnbData + outPos);
+			std::unique_ptr<uint8_t[]> inBuf = reader.ReadBytes(block_size);
+			dec.Decompress(inBuf.get(), block_size, xnbData + outPos, frame_size);
 			outPos += frame_size;
-
-			delete[] inBuf;
-			delete[] outBuf;
 		}
 		catch(const std::string& e)
 		{

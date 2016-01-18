@@ -60,9 +60,9 @@ void BitBuffer::EnsureBits(uint8_t bits)
 {
 	while(this->bitsleft < bits)
 	{
-		int lo = this->ReadByte();
-		int hi = this->ReadByte();
-		int amount2shift = sizeof(uint32_t)*8 - 16 - bitsleft;
+		uint_fast8_t lo = this->ReadByte();
+		uint_fast8_t hi = this->ReadByte();
+		uint_fast8_t amount2shift = sizeof(uint32_t)*8 - 16 - bitsleft;
 		this->buffer |= static_cast<uint32_t>(((hi << 8) | lo) << amount2shift);
 		this->bitsleft += 16;
 	}

@@ -125,6 +125,38 @@ LzxDecoder::~LzxDecoder()
 	delete[] this->state_window;
 }
 
+inline void copy_n_safe(uint8_t* buf, uint_fast32_t& len, uint_fast32_t& src, uint_fast32_t& dest)
+{
+	// safe_len = abs(dest - src)
+	uint_fast32_t safe_len;
+	if(dest >= src)
+	{
+		safe_len = dest - src;
+	}
+	else
+	{
+		safe_len = src - dest;
+	}
+
+	// safe_len = min(safe_len, len)
+	if(safe_len > len)
+	{
+		safe_len = len;
+	}
+
+	// fast copying
+	std::copy_n(buf + src, safe_len, buf + dest);
+	src += safe_len;
+	dest += safe_len;
+	len -= safe_len;
+
+	// overlap-safe copying (slow)
+	while(len-- > 0)
+	{
+		buf[dest++] = buf[src++];
+	}
+}
+
 void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* outBuf, uint_fast32_t outLen)
 {
 	if(outLen < 1)
@@ -332,20 +364,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 								{
 									match_length -= copy_length;
 									window_posn += (uint32_t)copy_length;
-									while(copy_length-- > 0)
-									{
-										this->state_window[rundest++] = this->state_window[runsrc++];
-									}
+									copy_n_safe(this->state_window, copy_length, runsrc, rundest);
 									runsrc = 0;
 								}
 							}
 							window_posn += (uint32_t)match_length;
 
-							/* copy match data - no worries about destination wraps */
-							while(match_length-- > 0)
-							{
-								this->state_window[rundest++] = this->state_window[runsrc++];
-							}
+							// copy match data
+							copy_n_safe(this->state_window, match_length, runsrc, rundest);
 						}
 					}
 					break;
@@ -449,20 +475,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 								{
 									match_length -= copy_length;
 									window_posn += (uint32_t)copy_length;
-									while(copy_length-- > 0)
-									{
-										this->state_window[rundest++] = this->state_window[runsrc++];
-									}
+									copy_n_safe(this->state_window, copy_length, runsrc, rundest);
 									runsrc = 0;
 								}
 							}
 							window_posn += (uint32_t)match_length;
 
-							// copy match data - no worries about destination wraps
-							while(match_length-- > 0)
-							{
-								this->state_window[rundest++] = this->state_window[runsrc++];
-							}
+							// copy match data
+							copy_n_safe(this->state_window, match_length, runsrc, rundest);
 						}
 					}
 					break;
@@ -514,7 +534,6 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 	uint16_t sym;
 	uint32_t leaf;
 	uint8_t bit_num = 1;
-	uint32_t fill;
 	uint32_t pos			= 0; // the current position in the decode table
 	uint32_t table_mask		= 1 << nbits;
 	uint32_t bit_mask		= table_mask >> 1; // don't do 0 length codes
@@ -534,12 +553,9 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 					return 1; /* table overrun */
 				}
 
-				/* fill all possible lookups of this symbol with the symbol itself */
-				fill = bit_mask;
-				while(fill-- > 0)
-				{
-					table[leaf++] = sym;
-				}
+				// fill all possible lookups of this symbol with the symbol itself
+				std::fill_n(table + leaf, bit_mask, sym);
+				leaf += bit_mask;
 			}
 		}
 		bit_mask >>= 1;
@@ -567,7 +583,7 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 				if(length[sym] == bit_num)
 				{
 					leaf = pos >> 16;
-					for(fill = 0; fill < bit_num - nbits; ++fill)
+					for(uint_fast32_t fill = 0; fill < bit_num - nbits; ++fill)
 					{
 						// if this path hasn't been taken yet, 'allocate' two entries
 						if(table[leaf] == 0)
