@@ -59,17 +59,14 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 {
 	if(window_bits < 15 || window_bits > 21)
 	{
-		throw MAKESTR("Unsupported window size range: " << window_bits);
+		throw ("Unsupported window size range: " + std::to_string(window_bits));
 	}
 
 	this->state_window_size = 1 << window_bits;
 
-	// let's initialise our state
+	// let's initialize our state
 	this->state_window = new uint8_t[this->state_window_size];
-	for(uint_fast32_t i = 0; i < this->state_window_size; ++i)
-	{
-		this->state_window[i] = 0xDC;
-	}
+	std::fill_n(this->state_window, this->state_window_size, 0xDC);
 	this->state_window_posn = 0;
 
 	// initialize static tables
@@ -83,7 +80,7 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	}
 	for(uint_fast32_t i = 0, j = 0; i <= 50; ++i)
 	{
-		LzxDecoder::position_base[i] = static_cast<uint32_t>(j);
+		LzxDecoder::position_base[i] = j;
 		j += 1 << LzxDecoder::extra_bits[i];
 	}
 
@@ -95,29 +92,24 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	}
 	else if(window_bits == 21)
 	{
+		// note for future me: this 50 is likely related to the 50*8 in the MAINTREE_MAXSYMBOLS definition (see posn_slots * 8 below)
 		posn_slots = 50;
 	}
 	else
 	{
-		posn_slots = window_bits << 1;
+		posn_slots = window_bits * 2;
 	}
 
 	// reset state
 	this->state_R0 = this->state_R1 = this->state_R2 = 1;
-	this->state_main_elements = static_cast<uint16_t>(NUM_CHARS + (posn_slots << 3));
+	this->state_main_elements = static_cast<uint16_t>(NUM_CHARS + (posn_slots * 8));
 	this->state_header_read = false;
 	this->state_block_remaining = 0;
-	this->state_block_type = INVALID;
+	this->state_block_type = BLOCKTYPE::INVALID;
 
-	// initialise tables to 0 (because deltas will be applied to them)
-	for(uint_fast32_t i = 0; i < MAINTREE_MAXSYMBOLS; ++i)
-	{
-		this->state_MAINTREE_len[i] = 0;
-	}
-	for(uint_fast32_t i = 0; i < LENGTH_MAXSYMBOLS; ++i)
-	{
-		this->state_LENGTH_len[i] = 0;
-	}
+	// initialize tables to 0 (because deltas will be applied to them)
+	std::fill_n(this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, 0);
+	std::fill_n(this->state_LENGTH_len, LENGTH_MAXSYMBOLS, 0);
 }
 
 LzxDecoder::~LzxDecoder()
@@ -125,7 +117,7 @@ LzxDecoder::~LzxDecoder()
 	delete[] this->state_window;
 }
 
-inline void copy_n_safe(uint8_t* buf, uint_fast32_t& len, uint_fast32_t& src, uint_fast32_t& dest)
+void copy_n_safe(uint8_t* buf, uint_fast32_t len, uint_fast32_t src, uint_fast32_t& dest)
 {
 	// safe_len = abs(dest - src)
 	uint_fast32_t safe_len;
@@ -150,8 +142,8 @@ inline void copy_n_safe(uint8_t* buf, uint_fast32_t& len, uint_fast32_t& src, ui
 	dest += safe_len;
 	len -= safe_len;
 
-	// overlap-safe copying (slow)
-	while(len-- > 0)
+	// the slow part
+	for(; len > 0; len -= 1)
 	{
 		buf[dest++] = buf[src++];
 	}
@@ -171,16 +163,6 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 	uint_fast32_t R0 = this->state_R0;
 	uint_fast32_t R1 = this->state_R1;
 	uint_fast32_t R2 = this->state_R2;
-	uint_fast32_t i, j;
-
-	uint_fast32_t togo = outLen;
-	uint_fast32_t main_element;
-	uint_fast32_t match_length;
-	uint_fast32_t match_offset;
-	uint_fast32_t length_footer;
-	uint_fast32_t extra;
-	uint_fast32_t verbatim_bits;
-	uint_fast32_t rundest, runsrc, copy_length, aligned_bits;
 
 	// read header if necessary
 	if(!this->state_header_read)
@@ -194,24 +176,25 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 	}
 
 	// main decoding loop
+	uint_fast32_t togo = outLen;
 	while(togo > 0)
 	{
 		// last block finished, new block expected
 		if(this->state_block_remaining == 0)
 		{
 			this->state_block_type = static_cast<BLOCKTYPE>(bitbuf.ReadBits(3));
-			i = bitbuf.ReadBits(16);
-			j = bitbuf.ReadBits(8);
-			this->state_block_remaining = this->state_block_length = static_cast<uint32_t>((i << 8) | j);
+
+			uint32_t hi = bitbuf.ReadBits(16);
+			uint32_t lo = bitbuf.ReadBits(8);
+			this->state_block_remaining = this->state_block_length = static_cast<uint32_t>((hi << 8) | lo);
 
 			switch(this->state_block_type)
 			{
-				case ALIGNED:
+				case BLOCKTYPE::ALIGNED:
 				{
-					for(i = 0, j = 0; i < 8; ++i)
+					for(uint_fast32_t i = 0; i < 8; ++i)
 					{
-						j = bitbuf.ReadBits(3);
-						this->state_ALIGNED_len[i] = static_cast<uint8_t>(j);
+						this->state_ALIGNED_len[i] = static_cast<uint8_t>(bitbuf.ReadBits(3));
 					}
 					this->MakeDecodeTable(ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, this->state_ALIGNED_len, this->state_ALIGNED_table);
 					// rest of aligned header is same as verbatim
@@ -220,7 +203,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 					#endif
 				}
 
-				case VERBATIM:
+				case BLOCKTYPE::VERBATIM:
 				{
 					this->ReadLengths(this->state_MAINTREE_len, 0, 256, bitbuf);
 					this->ReadLengths(this->state_MAINTREE_len, 256, this->state_main_elements, bitbuf);
@@ -231,7 +214,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 					break;
 				}
 
-				case UNCOMPRESSED:
+				case BLOCKTYPE::UNCOMPRESSED:
 				{
 					bitbuf.EnsureBits(16); // get up to 16 pad bits into the buffer
 					if(bitbuf.bitsleft > 16)
@@ -244,10 +227,10 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 					break;
 				}
 
-				case INVALID:
+				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw MAKESTR("Invalid state block type:  " << this->state_block_type);
+					throw MAKESTR("Invalid state block type:  " << static_cast<uint_fast16_t>(this->state_block_type));
 				}
 			}
 		}
@@ -261,7 +244,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 			std::cerr << "WTF: pos > startpos + inLen\n";
 			if(bitbuf.inpos > (inLen + 2) || bitbuf.bitsleft < 16)
 			{
-				throw "Invalid data";
+				throw std::string("Invalid data");
 			}
 		}
 
@@ -285,11 +268,12 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 
 			switch(this->state_block_type)
 			{
-				case VERBATIM:
+				case BLOCKTYPE::VERBATIM:
 				{
 					while(this_run > 0)
 					{
-						main_element = this->ReadHuffSym(this->state_MAINTREE_table, this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+						uint32_t main_element = this->ReadHuffSym(this->state_MAINTREE_table, this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+
 						if(main_element < NUM_CHARS)
 						{
 							/* literal: 0 to NUM_CHARS-1 */
@@ -301,24 +285,24 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 							/* match: NUM_CHARS + ((slot<<3) | length_header (3 bits)) */
 							main_element -= NUM_CHARS;
 
-							match_length = main_element & NUM_PRIMARY_LENGTHS;
+							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
 							if(match_length == NUM_PRIMARY_LENGTHS)
 							{
-								length_footer = this->ReadHuffSym(this->state_LENGTH_table, this->state_LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+								uint_fast32_t length_footer = this->ReadHuffSym(this->state_LENGTH_table, this->state_LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
 								match_length += length_footer;
 							}
 							match_length += MIN_MATCH;
 
-							match_offset = main_element >> 3;
+							uint_fast32_t match_offset = main_element >> 3;
 
 							if(match_offset > 2)
 							{
 								// not repeated offset
 								if(match_offset != 3)
 								{
-									extra = extra_bits[match_offset];
-									verbatim_bits = (int32_t)bitbuf.ReadBits((uint8_t)extra);
-									match_offset = (int32_t)position_base[match_offset] - 2 + verbatim_bits;
+									uint8_t extra = extra_bits[match_offset];
+									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
+									match_offset = position_base[match_offset] - 2 + verbatim_bits;
 								}
 								else
 								{
@@ -347,10 +331,11 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 								R0 = match_offset;
 							}
 
-							rundest = window_posn;
+							uint_fast32_t runsrc;
+							uint_fast32_t rundest = window_posn;
 							this_run -= match_length;
 
-							/* copy any wrapped around source data */
+							// copy any wrapped around source data
 							if(window_posn >= match_offset)
 							{
 								// no wrap
@@ -358,17 +343,17 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 							}
 							else
 							{
-								runsrc = rundest + ((int32_t)window_size - match_offset);
-								copy_length = match_offset - (int32_t)window_posn;
+								runsrc = rundest + (window_size - match_offset);
+								uint_fast32_t copy_length = match_offset - window_posn;
 								if(copy_length < match_length)
 								{
 									match_length -= copy_length;
-									window_posn += (uint32_t)copy_length;
+									window_posn += copy_length;
 									copy_n_safe(this->state_window, copy_length, runsrc, rundest);
 									runsrc = 0;
 								}
 							}
-							window_posn += (uint32_t)match_length;
+							window_posn += match_length;
 
 							// copy match data
 							copy_n_safe(this->state_window, match_length, runsrc, rundest);
@@ -377,16 +362,16 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 					break;
 				}
 
-				case ALIGNED:
+				case BLOCKTYPE::ALIGNED:
 				{
 					while(this_run > 0)
 					{
-						main_element = (int32_t)this->ReadHuffSym(this->state_MAINTREE_table, this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+						uint32_t main_element = this->ReadHuffSym(this->state_MAINTREE_table, this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
 
 						if(main_element < NUM_CHARS)
 						{
 							// literal 0 to NUM_CHARS-1
-							this->state_window[window_posn++] = (uint8_t)main_element;
+							this->state_window[window_posn++] = static_cast<uint8_t>(main_element);
 							--this_run;
 						}
 						else
@@ -394,40 +379,41 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 							/* match: NUM_CHARS + ((slot<<3) | length_header (3 bits)) */
 							main_element -= NUM_CHARS;
 
-							match_length = main_element & NUM_PRIMARY_LENGTHS;
+							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
 							if(match_length == NUM_PRIMARY_LENGTHS)
 							{
-								length_footer = (int32_t)this->ReadHuffSym(this->state_LENGTH_table, this->state_LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+								uint_fast32_t length_footer = this->ReadHuffSym(this->state_LENGTH_table, this->state_LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
 								match_length += length_footer;
 							}
 							match_length += MIN_MATCH;
 
-							match_offset = main_element >> 3;
+							uint_fast32_t match_offset = main_element >> 3;
 
 							if(match_offset > 2)
 							{
 								/* not repeated offset */
-								extra = extra_bits[match_offset];
-								match_offset = (int32_t)position_base[match_offset] - 2;
+								uint8_t extra = extra_bits[match_offset];
+								match_offset = position_base[match_offset] - 2;
 								if(extra > 3)
 								{
 									/* verbatim and aligned bits */
 									extra -= 3;
-									verbatim_bits = (int32_t)bitbuf.ReadBits((uint8_t)extra);
+									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
 									match_offset += (verbatim_bits << 3);
-									aligned_bits = (int32_t)this->ReadHuffSym(this->state_ALIGNED_table, this->state_ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+
+									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state_ALIGNED_table, this->state_ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
 									match_offset += aligned_bits;
 								}
 								else if(extra == 3)
 								{
 									/* aligned bits only */
-									aligned_bits = (int32_t)this->ReadHuffSym(this->state_ALIGNED_table, this->state_ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state_ALIGNED_table, this->state_ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
 									match_offset += aligned_bits;
 								}
 								else if(extra > 0) /* extra==1, extra==2 */
 								{
 									/* verbatim bits only */
-									verbatim_bits = (int32_t)bitbuf.ReadBits((uint8_t)extra);
+									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
 									match_offset += verbatim_bits;
 								}
 								else /* extra == 0 */
@@ -439,26 +425,27 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 								/* update repeated offset LRU queue */
 								R2 = R1;
 								R1 = R0;
-								R0 = (uint32_t)match_offset;
+								R0 = match_offset;
 							}
 							else if(match_offset == 0)
 							{
-								match_offset = (int32_t)R0;
+								match_offset = R0;
 							}
 							else if(match_offset == 1)
 							{
-								match_offset = (int32_t)R1;
+								match_offset = R1;
 								R1 = R0;
-								R0 = (uint32_t)match_offset;
+								R0 = match_offset;
 							}
 							else /* match_offset == 2 */
 							{
-								match_offset = (int32_t)R2;
+								match_offset = R2;
 								R2 = R0;
-								R0 = (uint32_t)match_offset;
+								R0 = match_offset;
 							}
 
-							rundest = (int32_t)window_posn;
+							uint_fast32_t runsrc;
+							uint_fast32_t rundest = window_posn;
 							this_run -= match_length;
 
 							// copy any wrapped around source data
@@ -469,17 +456,17 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 							}
 							else
 							{
-								runsrc = rundest + ((int32_t)window_size - match_offset);
-								copy_length = match_offset - (int32_t)window_posn;
+								runsrc = rundest + (window_size - match_offset);
+								uint_fast32_t copy_length = match_offset - window_posn;
 								if(copy_length < match_length)
 								{
 									match_length -= copy_length;
-									window_posn += (uint32_t)copy_length;
+									window_posn += copy_length;
 									copy_n_safe(this->state_window, copy_length, runsrc, rundest);
 									runsrc = 0;
 								}
 							}
-							window_posn += (uint32_t)match_length;
+							window_posn += match_length;
 
 							// copy match data
 							copy_n_safe(this->state_window, match_length, runsrc, rundest);
@@ -488,7 +475,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 					break;
 				}
 
-				case UNCOMPRESSED:
+				case BLOCKTYPE::UNCOMPRESSED:
 				{
 					if((bitbuf.inpos + this_run) > inLen)
 					{
@@ -497,14 +484,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 
 					std::copy_n(inBuf + bitbuf.inpos, this_run, this->state_window + window_posn);
 					bitbuf.inpos += this_run;
-					window_posn += (uint32_t)this_run;
+					window_posn += this_run;
 					break;
 				}
 
-				case INVALID:
+				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw MAKESTR("Invalid state block type: " << this->state_block_type << "\n");
+					throw MAKESTR("Invalid state block type: " << static_cast<uint_fast16_t>(this->state_block_type) << "\n");
 				}
 			}
 		}
@@ -514,10 +501,10 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 		throw std::string("togo != 0\n");
 	}
 
-	int start_window_pos = (int32_t)window_posn;
+	uint_fast32_t start_window_pos = window_posn;
 	if(start_window_pos == 0)
 	{
-		start_window_pos = (int32_t)window_size;
+		start_window_pos = window_size;
 	}
 	start_window_pos -= outLen;
 	std::copy_n(this->state_window + start_window_pos, outLen, outBuf);
@@ -528,21 +515,23 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 	this->state_R2 = R2;
 }
 
-// TODO make returns throw exceptions
-int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[], uint16_t table[])
+void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[], uint16_t table[])
 {
-	uint16_t sym;
-	uint32_t leaf;
+	uint_fast32_t leaf;
 	uint8_t bit_num = 1;
-	uint32_t pos			= 0; // the current position in the decode table
+	uint_fast32_t pos		= 0; // the current position in the decode table
+	// note: nbits is at most 12
 	uint32_t table_mask		= 1 << nbits;
-	uint32_t bit_mask		= table_mask >> 1; // don't do 0 length codes
-	uint32_t next_symbol	= bit_mask; // base of allocation for long codes
 
-	/* fill entries for codes short enough for a direct mapping */
+	// bit_mask never exceeds 15 bits
+	uint16_t bit_mask		= static_cast<uint16_t>(table_mask >> 1); // don't do 0 length codes
+
+	uint16_t next_symbol	= bit_mask; // base of allocation for long codes
+
+	// fill entries for codes short enough for a direct mapping
 	while(bit_num <= nbits)
 	{
-		for(sym = 0; sym < nsyms; ++sym)
+		for(uint16_t sym = 0; sym < nsyms; ++sym)
 		{
 			if(length[sym] == bit_num)
 			{
@@ -550,35 +539,31 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 
 				if((pos += bit_mask) > table_mask)
 				{
-					return 1; /* table overrun */
+					throw std::string("table overrun (1)");
 				}
 
 				// fill all possible lookups of this symbol with the symbol itself
 				std::fill_n(table + leaf, bit_mask, sym);
-				leaf += bit_mask;
 			}
 		}
 		bit_mask >>= 1;
 		++bit_num;
 	}
 
-	/* if there are any codes longer than nbits */
+	// if there are any codes longer than nbits
 	if(pos != table_mask)
 	{
-		/* clear the remainder of the table */
-		for(sym = (uint16_t)pos; sym < table_mask; ++sym)
-		{
-			table[sym] = 0;
-		}
+		// clear the remainder of the table
+		std::fill_n(table + pos, table_mask - pos, 0);
 
-		/* give ourselves room for codes to grow by up to 16 more bits */
+		// give ourselves room for codes to grow by up to 16 more bits
 		pos <<= 16;
 		table_mask <<= 16;
 		bit_mask = 1 << 15;
 
 		while(bit_num <= 16)
 		{
-			for(sym = 0; sym < nsyms; ++sym)
+			for(uint16_t sym = 0; sym < nsyms; ++sym)
 			{
 				if(length[sym] == bit_num)
 				{
@@ -590,11 +575,11 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 						{
 							table[(next_symbol << 1)] = 0;
 							table[(next_symbol << 1) + 1] = 0;
-							table[leaf] = (uint16_t)(next_symbol++);
+							table[leaf] = (next_symbol++);
 						}
 						// follow the path and select either left or right for next bit
-						leaf = (uint32_t)(table[leaf] << 1);
-						if(((pos >> (int32_t)(15 - fill)) & 1) == 1)
+						leaf = static_cast<uint_fast32_t>(table[leaf] << 1);
+						if(((pos >> (15 - fill)) & 1) == 1)
 						{
 							++leaf;
 						}
@@ -603,7 +588,7 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 
 					if((pos += bit_mask) > table_mask)
 					{
-						return 1;
+						throw std::string("table overrun (2)");
 					}
 				}
 			}
@@ -615,60 +600,66 @@ int LzxDecoder::MakeDecodeTable(uint32_t nsyms, uint32_t nbits, uint8_t length[]
 	// full table?
 	if(pos == table_mask)
 	{
-		return 0;
+		return;
 	}
 
 	// either erroneous table, or all elements are 0 - let's find out.
-	for(sym = 0; sym < nsyms; ++sym)
+	for(uint_fast16_t sym = 0; sym < nsyms; ++sym)
 	{
 		if(length[sym] != 0)
 		{
-			return 1;
+			throw std::string("erroneous table");
 		}
 	}
-	return 0;
 }
 
-// TODO throw exceptions instead of returns
-void LzxDecoder::ReadLengths(uint8_t lens[], uint32_t first, uint32_t last, BitBuffer& bitbuf)
+void LzxDecoder::ReadLengths(uint8_t lens[], uint_fast32_t first, uint_fast32_t last, BitBuffer& bitbuf)
 {
-	uint32_t x, y;
-
 	// hufftbl pointer here?
 
-	for(x = 0; x < 20; ++x)
+	for(uint_fast32_t x = 0; x < PRETREE_MAXSYMBOLS; ++x)
 	{
-		y = bitbuf.ReadBits(4);
-		this->state_PRETREE_len[x] = (uint8_t)y;
+		this->state_PRETREE_len[x] = static_cast<uint8_t>(bitbuf.ReadBits(4));
 	}
-	MakeDecodeTable(PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, this->state_PRETREE_len, this->state_PRETREE_table);
+	this->MakeDecodeTable(PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, this->state_PRETREE_len, this->state_PRETREE_table);
 
-	for(x = first; x < last;)
+	for(uint_fast32_t x = first; x < last; )
 	{
-		int z = (int32_t)ReadHuffSym(this->state_PRETREE_table, this->state_PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
+		int_fast32_t z = this->ReadHuffSym(this->state_PRETREE_table, this->state_PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
 		if(z == 17)
 		{
-			y = bitbuf.ReadBits(4); y += 4;
-			while(y-- != 0) lens[x++] = 0;
+			uint_fast32_t y = bitbuf.ReadBits(4);
+			y += 4;
+			std::fill_n(lens + x, y, 0);
+			x += y;
 		}
 		else if(z == 18)
 		{
-			y = bitbuf.ReadBits(5); y += 20;
-			while(y-- != 0) lens[x++] = 0;
+			uint_fast32_t y = bitbuf.ReadBits(5);
+			y += 20;
+			std::fill_n(lens + x, y, 0);
+			x += y;
 		}
 		else if(z == 19)
 		{
-			y = bitbuf.ReadBits(1); y += 4;
-			z = (int32_t)ReadHuffSym(this->state_PRETREE_table, this->state_PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
-			z = lens[x] - z; if(z < 0) z += 17;
-			while(y-- != 0)
+			uint_fast32_t y = bitbuf.ReadBits(1);
+			y += 4;
+			z = ReadHuffSym(this->state_PRETREE_table, this->state_PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
+			z = lens[x] - z;
+			if(z < 0)
 			{
-				lens[x++] = static_cast<uint8_t>(z);
+				z += 17;
 			}
+			std::fill_n(lens + x, y, static_cast<uint8_t>(z));
+			x += y;
 		}
 		else
 		{
-			z = lens[x] - z; if(z < 0) z += 17;
+			z = lens[x] - z;
+			if(z < 0)
+			{
+				z += 17;
+			}
 			lens[x++] = static_cast<uint8_t>(z);
 		}
 	}

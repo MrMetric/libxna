@@ -20,25 +20,12 @@ XNB::~XNB()
 void XNB::read(BinaryReader& reader)
 {
 	std::string format = reader.ReadString(3);
-	if(format.compare("XNB") != 0)
+	if(format != "XNB")
 	{
 		throw ("Invalid format: " + format);
 	}
 
 	int8_t platform = reader.ReadInt8();
-	if(platform != 'w' && platform != 'm' && platform != 'x')
-	{
-		std::string error = "Unknown platform: ";
-		if(isgraph(platform))
-		{
-			error += platform;
-		}
-		else
-		{
-			error += std::to_string(platform);
-		}
-		throw error;
-	}
 	this->platform = static_cast<Platform>(platform);
 
 	uint8_t xna_version = reader.ReadUInt8();
@@ -52,9 +39,9 @@ void XNB::read(BinaryReader& reader)
 
 	bool compressed = (flags & XNA::XNB::Flag::compressed) != 0;
 	uint32_t file_length = reader.ReadUInt32();
-	if(file_length != reader.file_size)
+	if(file_length != reader.GetFileSize())
 	{
-		throw ("File length mismatch: " + std::to_string(file_length) + " should be " + std::to_string(reader.file_size));
+		throw ("File length mismatch: " + std::to_string(file_length) + " should be " + std::to_string(reader.GetFileSize()));
 	}
 
 	if(compressed)

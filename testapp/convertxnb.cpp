@@ -1,12 +1,12 @@
 #include <BinaryReader.hpp>
 #include <BinaryWriter.hpp>
-#include <sstream>
 #include <iostream>
 #include <XNB.hpp>
 #include <Content.hpp>
 #include <png.h>
+#include <cstring> // strerror
 
-void write_png_RGBA(const char* filename, uint8_t* buf, uint_fast32_t width, uint_fast32_t height)
+void write_png_RGBA(const char* filename, uint8_t* buf, png_uint_32 width, png_uint_32 height)
 {
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 	if(png_ptr == nullptr)
@@ -30,22 +30,10 @@ void write_png_RGBA(const char* filename, uint8_t* buf, uint_fast32_t width, uin
 	png_set_IHDR(png_ptr, info_ptr, width, height, bit_depth, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 	png_write_info(png_ptr, info_ptr);
 	uint_fast32_t rowsize = 4 * width * sizeof(png_byte);
-
-	/*
 	for(uint_fast32_t y = 0; y < height; ++y)
 	{
 		png_write_row(png_ptr, buf + y * rowsize);
 	}
-	*/
-
-	png_byte** row_pointers = new png_byte*[height];
-	for(int y = 0; y < height; ++y)
-	{
-		row_pointers[y] = buf + y * rowsize;
-	}
-	png_write_image(png_ptr, row_pointers);
-	delete[] row_pointers;
-
 	png_write_end(png_ptr, info_ptr);
 	fclose(fp);
 	png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1);
@@ -92,9 +80,15 @@ int main(int argc, char** argv)
 			}
 
 			BinaryWriter writer(outname);
-			writer.WriteString("RIFF");
-			writer.WriteUInt32(sound->data.size() + 36);
-			writer.WriteString("WAVEfmt ");
+			writer.WriteChars("RIFF");
+			uint_fast64_t sound_data_size = sound->data.size();
+			uint_fast64_t file_size = sound_data_size + 36;
+			if(file_size > UINT32_MAX)
+			{
+				throw std::string("file size is too big (" + std::to_string(file_size) + " > " + std::to_string(UINT32_MAX) + ")");
+			}
+			writer.WriteUInt32(static_cast<uint32_t>(sound_data_size));
+			writer.WriteChars("WAVEfmt ");
 			writer.WriteUInt32(16);
 			writer.WriteUInt16(static_cast<uint16_t>(sound->format));
 			writer.WriteUInt16(sound->channel_count);
@@ -102,8 +96,8 @@ int main(int argc, char** argv)
 			writer.WriteUInt32(sound->average_byte_rate);
 			writer.WriteUInt16(sound->block_align);
 			writer.WriteUInt16(sound->bits_per_sample);
-			writer.WriteString("data");
-			writer.WriteUInt32(sound->data.size());
+			writer.WriteChars("data");
+			writer.WriteUInt32(static_cast<uint32_t>(sound_data_size));
 			writer.WriteBytes(sound->data);
 		}
 		else

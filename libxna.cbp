@@ -18,8 +18,7 @@
 					<Add option="-ftrapv" />
 					<Add option="-Weverything" />
 					<Add option="-g" />
-					<Add option="-fsanitize=undefined" />
-					<Add option="-Wno-old-style-cast" />
+					<Add option="-fsanitize=undefined,integer" />
 				</Compiler>
 				<Linker>
 					<Add option="-lubsan" />
