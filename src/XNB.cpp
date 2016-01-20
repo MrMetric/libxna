@@ -143,17 +143,9 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 			throw std::string("Error decompressing content data");
 		}
 
-		try
-		{
-			std::unique_ptr<uint8_t[]> inBuf = reader.ReadBytes(block_size);
-			dec.Decompress(inBuf.get(), block_size, xnbData + outPos, frame_size);
-			outPos += frame_size;
-		}
-		catch(const std::string& e)
-		{
-			std::string error = ("Error while decompressing data: " + e);
-			throw error;
-		}
+		std::unique_ptr<uint8_t[]> inBuf = reader.ReadBytes(block_size);
+		dec.Decompress(inBuf.get(), block_size, xnbData + outPos, frame_size);
+		outPos += frame_size;
 
 		pos += block_size;
 	}
