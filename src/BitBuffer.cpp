@@ -46,6 +46,8 @@
 
 #include "../include/BitBuffer.hpp"
 
+#include <algorithm>
+
 BitBuffer::BitBuffer(const uint8_t* inBuf, uint_fast32_t inlen)
 {
 	this->buffer = 0;
@@ -109,9 +111,10 @@ template <class type> type BitBuffer::ReadType()
 	//std::cout << "read " << sizeof(type) << " bytes at " << this->inpos << " with bufsize " << this->inlen << "\n";
 	if(maxpos < this->inlen)
 	{
-		type i = *reinterpret_cast<const type*>(this->inBuf + this->inpos);
+		uint8_t buf[sizeof(type)];
+		std::copy_n(this->inBuf + this->inpos, sizeof(type), buf);
 		this->inpos += sizeof(type);
-		return i;
+		return *reinterpret_cast<type*>(buf);
 	}
 	//throw std::string("tried to read " + std::to_string(sizeof(type) + this->inlen - this->inpos) + " past end of buffer");
 	return 0;
