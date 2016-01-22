@@ -3,17 +3,14 @@
 namespace XNA {
 namespace Content {
 
-//ContentBase* Read(BinaryReader& reader, const std::string& type_reader_name)
 std::shared_ptr<ContentBase> ContentBase::Read(BinaryReader& reader, const std::string& type_reader_name)
 {
 	if(type_reader_name == "Microsoft.Xna.Framework.Content.Texture2DReader")
 	{
-		//return new Texture2D(reader);
 		return std::make_shared<Texture2D>(reader);
 	}
 	if(type_reader_name == "Microsoft.Xna.Framework.Content.SoundEffectReader")
 	{
-		//return new Sound(reader);
 		return std::make_shared<Sound>(reader);
 	}
 	throw ("unknown type reader: " + type_reader_name);
@@ -32,11 +29,19 @@ Texture2D::Texture2D(BinaryReader& reader)
 
 std::vector<uint8_t> Texture2D::get_mip_data(uint_fast32_t i)
 {
+	if(i >= this->mips.size())
+	{
+		throw ("invalid mip index (" + std::to_string(i) + ")");
+	}
 	return this->mips[i];
 }
 
 std::pair<uint32_t, uint32_t> Texture2D::get_mip_size(uint_fast32_t i)
 {
+	if(i >= this->mips.size())
+	{
+		throw ("invalid mip index (" + std::to_string(i) + ")");
+	}
 	return std::make_pair(this->width >> i, this->height >> i);
 }
 
@@ -63,6 +68,19 @@ void Texture2D::read(BinaryReader& reader)
 	for(uint_fast32_t i = 0; i < mip_count; ++i)
 	{
 		uint32_t mip_size = reader.ReadUInt32();
+		if(mip_size % 4 != 0)
+		{
+			throw std::string("image data size is not a multiple of 4");
+		}
+		// TODO: will floor ever cause the third check to be wrong?
+		if((width == 0) || (height == 0) || (width > UINT32_MAX / 4 / height))
+		{
+			throw std::string("image dimensions are invalid");
+		}
+		if(width * height != mip_size / 4)
+		{
+			throw std::string("image dimensions and data size do not match");
+		}
 		std::unique_ptr<uint8_t[]> mip_data(reader.ReadBytes(mip_size));
 		std::vector<uint8_t> mip_data_vec(mip_data.get(), mip_data.get() + mip_size);
 		this->mips.push_back(mip_data_vec);
@@ -104,12 +122,12 @@ void Sound::read(BinaryReader& reader)
 
 	if(average_byte_rate != sample_rate * channel_count * bytes_per_sample)
 	{
-		throw ("average_byte_rate does not match sample_rate * channel_count * bits_per_sample / 8");
+		throw std::string("average_byte_rate does not match sample_rate * channel_count * bits_per_sample / 8");
 	}
 
 	if(block_align != channel_count * bytes_per_sample)
 	{
-		throw ("block_align does not match channel_count * bits_per_sample / 8");
+		throw std::string("block_align does not match channel_count * bits_per_sample / 8");
 	}
 
 	uint16_t extra_info_size = reader.ReadUInt16();

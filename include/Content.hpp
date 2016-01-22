@@ -16,7 +16,6 @@ class ContentBase
 	public:
 		std::string get_type_reader_name();
 
-		//static ContentBase* Read(BinaryReader& reader, const std::string& type_reader_name);
 		static std::shared_ptr<ContentBase> Read(BinaryReader& reader, const std::string& type_reader_name);
 
 	protected:
