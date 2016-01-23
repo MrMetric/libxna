@@ -25,8 +25,9 @@ class LzxDecoder
 {
 	public:
 		explicit LzxDecoder(const uint_fast16_t window_bits);
+		LzxDecoder(const LzxDecoder&) = delete;
 		~LzxDecoder();
-		void Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* outBuf, uint_fast32_t outLen);
+		void Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uint8_t* outBuf, const uint_fast32_t outLen);
 
 		static uint32_t position_base[51];
 		static uint8_t extra_bits[52];

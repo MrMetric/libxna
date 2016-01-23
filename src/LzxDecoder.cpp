@@ -45,8 +45,6 @@
 //#endregion
 
 #include "../include/LzxDecoder.hpp"
-#include <string.h> // for memcpy
-#include <iostream>
 #include <sstream>
 #include <algorithm> // std::copy_n
 
@@ -59,7 +57,7 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 {
 	if(window_bits < 15 || window_bits > 21)
 	{
-		throw ("Unsupported window size range: " + std::to_string(window_bits));
+		throw ("LzxDecoder: unsupported window size range: " + std::to_string(window_bits));
 	}
 
 	this->state_window_size = 1 << window_bits;
@@ -149,13 +147,8 @@ void copy_n_safe(uint8_t* buf, uint_fast32_t len, uint_fast32_t src, uint_fast32
 	}
 }
 
-void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* outBuf, uint_fast32_t outLen)
+void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uint8_t* outBuf, const uint_fast32_t outLen)
 {
-	if(outLen < 1)
-	{
-		throw ("LzxDecoder: outLen is < 1 (" + std::to_string(outLen) + ")");
-	}
-
 	BitBuffer bitbuf(inBuf, inLen);
 
 	uint_fast32_t window_posn = this->state_window_posn;
@@ -170,7 +163,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 		uint32_t intel = bitbuf.ReadBits(1);
 		if(intel != 0)
 		{
-			throw std::string("LzxDecoder: Intel E8 not supported");
+			throw std::string("LzxDecoder::Decompress: Intel E8 not supported");
 		}
 		this->state_header_read = true;
 	}
@@ -230,7 +223,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw MAKESTR("Invalid state block type:  " << static_cast<uint_fast16_t>(this->state_block_type));
+					throw MAKESTR("LzxDecoder::Decompress: invalid state block type:  " << static_cast<uint_fast16_t>(this->state_block_type));
 				}
 			}
 		}
@@ -241,10 +234,9 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 			/*it's possible to have a file where the next run is less than 16 bits in size. In this case, the READ_HUFFSYM() macro used in building
 			the tables will exhaust the buffer, so we should allow for this, but not allow those accidentally read bits to be used
 			(so we check that there are at least 16 bits remaining - in this boundary case they aren't really part of the compressed data)*/
-			std::cerr << "WTF: pos > startpos + inLen\n";
 			if(bitbuf.inpos > (inLen + 2) || bitbuf.bitsleft < 16)
 			{
-				throw std::string("Invalid data");
+				throw std::string("LzxDecoder::Decompress: invalid data");
 			}
 		}
 
@@ -263,7 +255,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 			// runs can't straddle the window wraparound
 			if((window_posn + this_run) > window_size)
 			{
-				throw std::string("Window position + Run > Window Size");
+				throw std::string("LzxDecoder::Decompress: invalid data (window position + this_run > window size)");
 			}
 
 			switch(this->state_block_type)
@@ -333,6 +325,11 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 
 							uint_fast32_t runsrc;
 							uint_fast32_t rundest = window_posn;
+
+							if(match_length > this_run)
+							{
+								throw std::string("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
+							}
 							this_run -= match_length;
 
 							// copy any wrapped around source data
@@ -446,6 +443,11 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 
 							uint_fast32_t runsrc;
 							uint_fast32_t rundest = window_posn;
+
+							if(match_length > this_run)
+							{
+								throw std::string("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
+							}
 							this_run -= match_length;
 
 							// copy any wrapped around source data
@@ -479,7 +481,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 				{
 					if((bitbuf.inpos + this_run) > inLen)
 					{
-						throw std::string("WTF: (bitbuf.inpos + this_run) > endpos");
+						throw std::string("LzxDecoder::Decompress: invalid data (bitbuf.inpos + this_run > endpos)");
 					}
 
 					std::copy_n(inBuf + bitbuf.inpos, this_run, this->state_window + window_posn);
@@ -491,20 +493,24 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, uint_fast32_t inLen, uint8_t* 
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw MAKESTR("Invalid state block type: " << static_cast<uint_fast16_t>(this->state_block_type) << "\n");
+					throw MAKESTR("LzxDecoder::Decompress: invalid state block type: " << static_cast<uint_fast16_t>(this->state_block_type) << "\n");
 				}
 			}
 		}
 	}
 	if(togo != 0)
 	{
-		throw std::string("togo != 0\n");
+		throw std::string("LzxDecoder::Decompress: togo != 0\n");
 	}
 
 	uint_fast32_t start_window_pos = window_posn;
 	if(start_window_pos == 0)
 	{
 		start_window_pos = window_size;
+	}
+	if(start_window_pos < outLen)
+	{
+		throw std::string("LzxDecoder::Decompress: invalid data (start_window_pos < outLen)");
 	}
 	start_window_pos -= outLen;
 	std::copy_n(this->state_window + start_window_pos, outLen, outBuf);
@@ -539,7 +545,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 
 				if((pos += bit_mask) > table_mask)
 				{
-					throw std::string("table overrun (1)");
+					throw std::string("LzxDecoder::MakeDecodeTable: table overrun (1)");
 				}
 
 				// fill all possible lookups of this symbol with the symbol itself
@@ -588,7 +594,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 
 					if((pos += bit_mask) > table_mask)
 					{
-						throw std::string("table overrun (2)");
+						throw std::string("LzxDecoder::MakeDecodeTable: table overrun (2)");
 					}
 				}
 			}
@@ -608,7 +614,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 	{
 		if(length[sym] != 0)
 		{
-			throw std::string("erroneous table");
+			throw std::string("LzxDecoder::MakeDecodeTable: erroneous table");
 		}
 	}
 }
@@ -677,7 +683,7 @@ uint32_t LzxDecoder::ReadHuffSym(uint16_t* table, uint8_t* lengths, uint32_t nsy
 			j >>= 1; i <<= 1; i |= (bitbuf.buffer & j) != 0 ? 1 : 0;
 			if(j == 0)
 			{
-				throw "LzxDecoder: j == 0 in ReadHuffSym";
+				throw "LzxDecoder::ReadHuffSym: j == 0 in ReadHuffSym";
 			}
 		}
 		while((i = table[i]) >= nsyms);
