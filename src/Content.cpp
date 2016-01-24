@@ -137,6 +137,10 @@ void Sound::read(BinaryReader& reader)
 	}
 
 	uint32_t data_size = reader.ReadUInt32();
+	if(data_size == 0)
+	{
+		throw std::string("sound is empty");
+	}
 	std::unique_ptr<uint8_t[]> data_ptr(reader.ReadBytes(data_size));
 	this->data = std::vector<uint8_t>(data_ptr.get(), data_ptr.get() + data_size);
 
