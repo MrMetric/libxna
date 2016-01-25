@@ -117,34 +117,30 @@ LzxDecoder::~LzxDecoder()
 
 void copy_n_safe(uint8_t* buf, uint_fast32_t len, uint_fast32_t src, uint_fast32_t& dest)
 {
-	// safe_len = abs(dest - src)
-	uint_fast32_t safe_len;
-	if(dest >= src)
+	if(src == dest)
 	{
-		safe_len = dest - src;
-	}
-	else
-	{
-		safe_len = src - dest;
+		return;
 	}
 
-	// safe_len = min(safe_len, len)
-	if(safe_len > len)
+	uint8_t* bufsrc = buf + src;
+	uint8_t* bufdest = buf + dest;
+	if((dest > src) && (src + len >= dest))
 	{
-		safe_len = len;
+		uint_fast32_t distance = dest - src;
+		uint_fast32_t copies = len / distance;
+		uint_fast32_t leftover = len % distance;
+		for(uint_fast32_t i = 0; i < copies; ++i)
+		{
+			std::copy_n(bufsrc, distance, bufdest);
+			bufdest += distance;
+		}
+		std::copy_n(bufsrc, leftover, bufdest);
 	}
-
-	// fast copying
-	std::copy_n(buf + src, safe_len, buf + dest);
-	src += safe_len;
-	dest += safe_len;
-	len -= safe_len;
-
-	// the slow part
-	for(; len > 0; len -= 1)
+	else // overlap does not matter
 	{
-		buf[dest++] = buf[src++];
+		std::copy_n(bufsrc, len, bufdest);
 	}
+	dest += len;
 }
 
 void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uint8_t* outBuf, const uint_fast32_t outLen)
