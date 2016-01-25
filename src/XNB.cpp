@@ -156,10 +156,6 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 		{
 			break;
 		}
-		if(block_size > 0x10000 || frame_size > 0x10000)
-		{
-			throw std::string("Error decompressing content data");
-		}
 		if(frame_size > decompressed_size - out_position)
 		{
 			throw std::string("XNB::decompress: bad data (frame size > decompressed size - output position)");
