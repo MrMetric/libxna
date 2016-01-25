@@ -19,6 +19,19 @@ XNB::~XNB()
 
 void XNB::read(BinaryReader& reader)
 {
+	if(reader.GetFileSize() < 14)
+	{
+		throw std::string("file is too small to be XNB format");
+		// 3: magic
+		// 1: platform
+		// 1: XNA version
+		// 1: flags
+		// 4: file length
+		// if compressed: 4: decompressed length
+		// etc
+		// TODO: determine higher minimum
+	}
+
 	std::string format = reader.ReadString(3);
 	if(format != "XNB")
 	{
@@ -67,8 +80,13 @@ void XNB::read(BinaryReader& reader)
 		this->type_readers.push_back(type_reader);
 	}
 
-	// note: objects after the first are shared resources
-	uint_fast64_t object_count = reader.Read7BitEncodedInt() + 1;
+	uint_fast64_t shared_resource_count = reader.Read7BitEncodedInt();
+	if(shared_resource_count > UINT32_MAX)
+	{
+		throw ("XNB::read: too many shared resources (" + std::to_string(shared_resource_count) + ")");
+	}
+	// there is 1 primary asset before the shared resources
+	uint_fast64_t object_count = shared_resource_count + 1;
 
 	for(uint_fast64_t i = 0; i < object_count; ++i)
 	{
@@ -104,8 +122,8 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 {
 	BinaryReader reader(std::move(compressed), compressed_size);
 
-	uint8_t* xnbData = new uint8_t[decompressed_size];
-	uint_fast32_t outPos = 0;
+	std::unique_ptr<uint8_t[]> xnbData(new uint8_t[decompressed_size]);
+	uint_fast32_t out_position = 0;
 
 	LzxDecoder dec(16); // window = 16 bits, window size = 65536 bytes
 	uint_fast32_t pos = 0;
@@ -142,21 +160,24 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 		{
 			throw std::string("Error decompressing content data");
 		}
+		if(frame_size > decompressed_size - out_position)
+		{
+			throw std::string("XNB::decompress: bad data (frame size > decompressed size - output position)");
+		}
 
 		std::unique_ptr<uint8_t[]> inBuf = reader.ReadBytes(block_size);
-		dec.Decompress(inBuf.get(), block_size, xnbData + outPos, frame_size);
-		outPos += frame_size;
+		dec.Decompress(inBuf.get(), block_size, xnbData.get() + out_position, frame_size);
+		out_position += frame_size;
 
 		pos += block_size;
 	}
 
-	if(outPos != decompressed_size)
+	if(out_position != decompressed_size)
 	{
-		std::string error = ("Decompression failed: " + std::to_string(outPos) + " should be " + std::to_string(decompressed_size + 10));
-		throw error;
+		throw ("XNB::decompress: final output position (" + std::to_string(out_position) + ") does not match expected size (" + std::to_string(decompressed_size) + ")");
 	}
 
-	return std::unique_ptr<uint8_t[]>(xnbData);
+	return xnbData;
 }
 
 } // namespace XNB
