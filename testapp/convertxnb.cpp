@@ -56,6 +56,12 @@ int main(int argc, char** argv)
 		XNA::XNB::XNB xnb(reader);
 		std::shared_ptr<XNA::Content::ContentBase> content = xnb.objects[0];
 
+		// TODO: should this check be in the XNB reader?
+		if(content == nullptr)
+		{
+			throw std::string("primary object is null");
+		}
+
 		std::string type_reader_name = content->get_type_reader_name();
 		if(type_reader_name == "Microsoft.Xna.Framework.Content.Texture2DReader")
 		{
@@ -74,6 +80,13 @@ int main(int argc, char** argv)
 		else if(type_reader_name == "Microsoft.Xna.Framework.Content.SoundEffectReader")
 		{
 			std::shared_ptr<XNA::Content::Sound> sound = std::static_pointer_cast<XNA::Content::Sound>(content);
+			uint_fast64_t sound_data_size = sound->data.size();
+			uint_fast64_t file_size = sound_data_size + 36;
+			if(file_size > UINT32_MAX)
+			{
+				throw std::string("file size is too big (" + std::to_string(file_size) + " > " + std::to_string(UINT32_MAX) + ")");
+			}
+
 			if(outname == "")
 			{
 				outname = filename + ".wav";
@@ -81,13 +94,7 @@ int main(int argc, char** argv)
 
 			BinaryWriter writer(outname);
 			writer.WriteChars("RIFF");
-			uint_fast64_t sound_data_size = sound->data.size();
-			uint_fast64_t file_size = sound_data_size + 36;
-			if(file_size > UINT32_MAX)
-			{
-				throw std::string("file size is too big (" + std::to_string(file_size) + " > " + std::to_string(UINT32_MAX) + ")");
-			}
-			writer.WriteUInt32(static_cast<uint32_t>(sound_data_size));
+			writer.WriteUInt32(static_cast<uint32_t>(file_size));
 			writer.WriteChars("WAVEfmt ");
 			writer.WriteUInt32(16);
 			writer.WriteUInt16(static_cast<uint16_t>(sound->format));
@@ -109,6 +116,12 @@ int main(int argc, char** argv)
 	catch(const std::string& e)
 	{
 		std::cerr << filename << ": " << e << "\n";
+		return EXIT_FAILURE;
+	}
+	catch(const std::bad_alloc& e)
+	{
+		// caught so that afl-fuzz does not detect it as a crash
+		std::cerr << filename << ": error allocating memory (" << e.what() << ")\n";
 		return EXIT_FAILURE;
 	}
 
