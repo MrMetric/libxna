@@ -20,9 +20,6 @@
 					<Add option="-g" />
 					<Add option="-fsanitize=undefined,integer" />
 				</Compiler>
-				<Linker>
-					<Add option="-lubsan" />
-				</Linker>
 			</Target>
 			<Target title="Release">
 				<Option platforms="Unix;" />
@@ -51,10 +48,12 @@
 		<Unit filename="include/Content.hpp" />
 		<Unit filename="include/LzxDecoder.hpp" />
 		<Unit filename="include/XNB.hpp" />
+		<Unit filename="include/xna_exception.hpp" />
 		<Unit filename="src/BitBuffer.cpp" />
 		<Unit filename="src/Content.cpp" />
 		<Unit filename="src/LzxDecoder.cpp" />
 		<Unit filename="src/XNB.cpp" />
+		<Unit filename="src/xna_exception.cpp" />
 		<Extensions>
 			<code_completion />
 			<debugger />
