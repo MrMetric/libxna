@@ -5,6 +5,7 @@
 #include <Content.hpp>
 #include <png.h>
 #include <cstring> // strerror
+#include <xna_exception.hpp>
 
 void write_png_RGBA(const char* filename, uint8_t* buf, png_uint_32 width, png_uint_32 height)
 {
@@ -116,6 +117,11 @@ int main(int argc, char** argv)
 	catch(const std::string& e)
 	{
 		std::cerr << filename << ": " << e << "\n";
+		return EXIT_FAILURE;
+	}
+	catch(const xna_error& e)
+	{
+		std::cerr << filename << ": " << e.what() << "\n";
 		return EXIT_FAILURE;
 	}
 	catch(const std::bad_alloc& e)

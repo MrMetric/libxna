@@ -47,6 +47,7 @@
 #include "../include/LzxDecoder.hpp"
 #include <sstream>
 #include <algorithm> // std::copy_n
+#include "../include/xna_exception.hpp"
 
 #define MAKESTR(ss) static_cast<std::ostringstream&>(std::ostringstream().seekp(0) << ss).str()
 
@@ -57,7 +58,7 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 {
 	if(window_bits < 15 || window_bits > 21)
 	{
-		throw ("LzxDecoder: unsupported window size range: " + std::to_string(window_bits));
+		throw lzx_error("LzxDecoder: unsupported window size range: " + std::to_string(window_bits));
 	}
 
 	this->state_window_size = 1 << window_bits;
@@ -159,7 +160,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 		uint32_t intel = bitbuf.ReadBits(1);
 		if(intel != 0)
 		{
-			throw std::string("LzxDecoder::Decompress: Intel E8 not supported");
+			throw lzx_error("LzxDecoder::Decompress: Intel E8 not supported");
 		}
 		this->state_header_read = true;
 	}
@@ -219,7 +220,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw MAKESTR("LzxDecoder::Decompress: invalid state block type:  " << static_cast<uint_fast16_t>(this->state_block_type));
+					throw lzx_error(MAKESTR("LzxDecoder::Decompress: invalid state block type:  " << static_cast<uint_fast16_t>(this->state_block_type)));
 				}
 			}
 		}
@@ -232,7 +233,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 			(so we check that there are at least 16 bits remaining - in this boundary case they aren't really part of the compressed data)*/
 			if(bitbuf.inpos > (inLen + 2) || bitbuf.bitsleft < 16)
 			{
-				throw std::string("LzxDecoder::Decompress: invalid data");
+				throw lzx_error("LzxDecoder::Decompress: invalid data");
 			}
 		}
 
@@ -251,7 +252,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 			// runs can't straddle the window wraparound
 			if((window_posn + this_run) > window_size)
 			{
-				throw std::string("LzxDecoder::Decompress: invalid data (window position + this_run > window size)");
+				throw lzx_error("LzxDecoder::Decompress: invalid data (window position + this_run > window size)");
 			}
 
 			switch(this->state_block_type)
@@ -324,7 +325,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 							if(match_length > this_run)
 							{
-								throw std::string("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
+								throw lzx_error("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
 							}
 							this_run -= match_length;
 
@@ -442,7 +443,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 							if(match_length > this_run)
 							{
-								throw std::string("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
+								throw lzx_error("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
 							}
 							this_run -= match_length;
 
@@ -477,7 +478,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				{
 					if((bitbuf.inpos + this_run) > inLen)
 					{
-						throw std::string("LzxDecoder::Decompress: invalid data (bitbuf.inpos + this_run > endpos)");
+						throw lzx_error("LzxDecoder::Decompress: invalid data (bitbuf.inpos + this_run > endpos)");
 					}
 
 					std::copy_n(inBuf + bitbuf.inpos, this_run, this->state_window + window_posn);
@@ -489,14 +490,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw MAKESTR("LzxDecoder::Decompress: invalid state block type: " << static_cast<uint_fast16_t>(this->state_block_type) << "\n");
+					throw lzx_error(MAKESTR("LzxDecoder::Decompress: invalid state block type: " << static_cast<uint_fast16_t>(this->state_block_type) << "\n"));
 				}
 			}
 		}
 	}
 	if(togo != 0)
 	{
-		throw std::string("LzxDecoder::Decompress: togo != 0\n");
+		throw lzx_error("LzxDecoder::Decompress: togo != 0\n");
 	}
 
 	uint_fast32_t start_window_pos = window_posn;
@@ -506,7 +507,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 	}
 	if(start_window_pos < outLen)
 	{
-		throw std::string("LzxDecoder::Decompress: invalid data (start_window_pos < outLen)");
+		throw lzx_error("LzxDecoder::Decompress: invalid data (start_window_pos < outLen)");
 	}
 	start_window_pos -= outLen;
 	std::copy_n(this->state_window + start_window_pos, outLen, outBuf);
@@ -541,7 +542,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 
 				if((pos += bit_mask) > table_mask)
 				{
-					throw std::string("LzxDecoder::MakeDecodeTable: table overrun (1)");
+					throw lzx_error("LzxDecoder::MakeDecodeTable: table overrun (1)");
 				}
 
 				// fill all possible lookups of this symbol with the symbol itself
@@ -590,7 +591,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 
 					if((pos += bit_mask) > table_mask)
 					{
-						throw std::string("LzxDecoder::MakeDecodeTable: table overrun (2)");
+						throw lzx_error("LzxDecoder::MakeDecodeTable: table overrun (2)");
 					}
 				}
 			}
@@ -610,7 +611,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 	{
 		if(length[sym] != 0)
 		{
-			throw std::string("LzxDecoder::MakeDecodeTable: erroneous table");
+			throw lzx_error("LzxDecoder::MakeDecodeTable: erroneous table");
 		}
 	}
 }
@@ -679,7 +680,7 @@ uint32_t LzxDecoder::ReadHuffSym(uint16_t* table, uint8_t* lengths, uint32_t nsy
 			j >>= 1; i <<= 1; i |= (bitbuf.buffer & j) != 0 ? 1 : 0;
 			if(j == 0)
 			{
-				throw "LzxDecoder::ReadHuffSym: j == 0 in ReadHuffSym";
+				throw lzx_error("LzxDecoder::ReadHuffSym: j == 0 in ReadHuffSym");
 			}
 		}
 		while((i = table[i]) >= nsyms);
