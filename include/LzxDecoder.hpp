@@ -29,13 +29,13 @@ class LzxDecoder
 		~LzxDecoder();
 		void Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uint8_t* outBuf, const uint_fast32_t outLen);
 
-		static uint32_t position_base[51];
-		static uint8_t extra_bits[52];
-
 	private:
 		void MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[], uint16_t table[]);
 		void ReadLengths(uint8_t lens[], uint_fast32_t first, uint_fast32_t last, BitBuffer& bitbuf);
 		uint32_t ReadHuffSym(uint16_t* table, uint8_t* lengths, uint32_t nsyms, uint8_t nbits, BitBuffer& bitbuf);
+
+		uint32_t position_base[51];
+		uint8_t extra_bits[52];
 
 		enum class BLOCKTYPE : uint8_t
 		{

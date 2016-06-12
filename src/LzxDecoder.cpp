@@ -51,9 +51,6 @@
 
 #define MAKESTR(ss) static_cast<std::ostringstream&>(std::ostringstream().seekp(0) << ss).str()
 
-uint32_t LzxDecoder::position_base[51];
-uint8_t LzxDecoder::extra_bits[52];
-
 LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 {
 	if(window_bits < 15 || window_bits > 21)
@@ -68,10 +65,10 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	std::fill_n(this->state_window, this->state_window_size, 0xDC);
 	this->state_window_posn = 0;
 
-	// initialize static tables
+	// initialize tables
 	for(uint_fast32_t i = 0, j = 0; i <= 50; i += 2)
 	{
-		LzxDecoder::extra_bits[i] = LzxDecoder::extra_bits[i + 1] = static_cast<uint8_t>(j);
+		this->extra_bits[i] = this->extra_bits[i + 1] = static_cast<uint8_t>(j);
 		if((i != 0) && (j < 17))
 		{
 			++j;
@@ -79,8 +76,8 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	}
 	for(uint_fast32_t i = 0, j = 0; i <= 50; ++i)
 	{
-		LzxDecoder::position_base[i] = j;
-		j += 1 << LzxDecoder::extra_bits[i];
+		this->position_base[i] = j;
+		j += 1 << this->extra_bits[i];
 	}
 
 	/* calculate required position slots */
@@ -289,9 +286,9 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 								// not repeated offset
 								if(match_offset != 3)
 								{
-									uint8_t extra = extra_bits[match_offset];
+									uint8_t extra = this->extra_bits[match_offset];
 									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
-									match_offset = position_base[match_offset] - 2 + verbatim_bits;
+									match_offset = this->position_base[match_offset] - 2 + verbatim_bits;
 								}
 								else
 								{
@@ -386,8 +383,8 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 							if(match_offset > 2)
 							{
 								/* not repeated offset */
-								uint8_t extra = extra_bits[match_offset];
-								match_offset = position_base[match_offset] - 2;
+								uint8_t extra = this->extra_bits[match_offset];
+								match_offset = this->position_base[match_offset] - 2;
 								if(extra > 3)
 								{
 									/* verbatim and aligned bits */
