@@ -1,5 +1,7 @@
 #include "Content.hpp"
 
+#include "xna_exception.hpp"
+
 namespace XNA {
 namespace Content {
 
@@ -13,7 +15,7 @@ std::shared_ptr<ContentBase> ContentBase::Read(BinaryReader& reader, const std::
 	{
 		return std::make_shared<Sound>(reader);
 	}
-	throw ("unknown type reader: " + type_reader_name);
+	throw xna_error("unknown type reader: " + type_reader_name);
 }
 
 std::string ContentBase::get_type_reader_name()
@@ -31,7 +33,7 @@ std::vector<uint8_t> Texture2D::get_mip_data(uint_fast32_t i)
 {
 	if(i >= this->mips.size())
 	{
-		throw ("invalid mip index (" + std::to_string(i) + ")");
+		throw xna_error("invalid mip index (" + std::to_string(i) + ")");
 	}
 	return this->mips[i];
 }
@@ -40,7 +42,7 @@ std::pair<uint32_t, uint32_t> Texture2D::get_mip_size(uint_fast32_t i)
 {
 	if(i >= this->mips.size())
 	{
-		throw ("invalid mip index (" + std::to_string(i) + ")");
+		throw xna_error("invalid mip index (" + std::to_string(i) + ")");
 	}
 	return std::make_pair(this->width >> i, this->height >> i);
 }
@@ -61,7 +63,7 @@ void Texture2D::read(BinaryReader& reader)
 		}
 		default:
 		{
-			throw ("unsupported surface format: " + std::to_string(surface_format_i));
+			throw xna_error("unsupported surface format: " + to_string(surface_format));
 		}
 	}
 
@@ -70,16 +72,16 @@ void Texture2D::read(BinaryReader& reader)
 		uint32_t mip_size = reader.ReadUInt32();
 		if(mip_size % 4 != 0)
 		{
-			throw std::string("image data size is not a multiple of 4");
+			throw xna_error("image data size is not a multiple of 4");
 		}
 		// TODO: will floor ever cause the third check to be wrong?
 		if((width == 0) || (height == 0) || (width > UINT32_MAX / 4 / height))
 		{
-			throw std::string("image dimensions are invalid");
+			throw xna_error("image dimensions are invalid");
 		}
 		if(width * height != mip_size / 4)
 		{
-			throw std::string("image dimensions and data size do not match");
+			throw xna_error("image dimensions and data size do not match");
 		}
 		std::unique_ptr<uint8_t[]> mip_data(reader.ReadBytes(mip_size));
 		std::vector<uint8_t> mip_data_vec(mip_data.get(), mip_data.get() + mip_size);
@@ -98,14 +100,14 @@ void Sound::read(BinaryReader& reader)
 	uint32_t format_size = reader.ReadUInt32();
 	if(format_size != 18)
 	{
-		throw ("unhandled format header size: " + std::to_string(format_size));
+		throw xna_error("unhandled format header size: " + std::to_string(format_size));
 	}
 
 	uint16_t format_i = reader.ReadUInt16();
 	this->format = static_cast<SoundFormat>(format_i);
 	if(this->format != SoundFormat::PCM)
 	{
-		throw ("unhandled sound format: " + std::to_string(format_i));
+		throw xna_error("unhandled sound format: " + std::to_string(format_i));
 	}
 
 	// see https://msdn.microsoft.com/en-us/library/windows/desktop/dd390970%28v=vs.85%29.aspx
@@ -116,30 +118,30 @@ void Sound::read(BinaryReader& reader)
 	this->bits_per_sample = reader.ReadUInt16();
 	if(bits_per_sample % 8 != 0)
 	{
-		throw ("bits per sample is not a multiple of 8: " + std::to_string(bits_per_sample));
+		throw xna_error("bits per sample is not a multiple of 8: " + std::to_string(bits_per_sample));
 	}
 	uint16_t bytes_per_sample = bits_per_sample / 8;
 
 	if(average_byte_rate != sample_rate * channel_count * bytes_per_sample)
 	{
-		throw std::string("average_byte_rate does not match sample_rate * channel_count * bits_per_sample / 8");
+		throw xna_error("average_byte_rate does not match sample_rate * channel_count * bits_per_sample / 8");
 	}
 
 	if(block_align != channel_count * bytes_per_sample)
 	{
-		throw std::string("block_align does not match channel_count * bits_per_sample / 8");
+		throw xna_error("block_align does not match channel_count * bits_per_sample / 8");
 	}
 
 	uint16_t extra_info_size = reader.ReadUInt16();
 	if(extra_info_size != 0)
 	{
-		throw ("extra info size is " + std::to_string(extra_info_size));
+		throw xna_error("extra info size is " + std::to_string(extra_info_size));
 	}
 
 	uint32_t data_size = reader.ReadUInt32();
 	if(data_size == 0)
 	{
-		throw std::string("sound is empty");
+		throw xna_error("sound is empty");
 	}
 	std::unique_ptr<uint8_t[]> data_ptr(reader.ReadBytes(data_size));
 	this->data = std::vector<uint8_t>(data_ptr.get(), data_ptr.get() + data_size);

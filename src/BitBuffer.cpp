@@ -116,6 +116,6 @@ template <class type> type BitBuffer::ReadType()
 		this->inpos += sizeof(type);
 		return *reinterpret_cast<type*>(buf);
 	}
-	//throw std::string("tried to read " + std::to_string(sizeof(type) + this->inlen - this->inpos) + " past end of buffer");
+	//throw xna_error("tried to read " + std::to_string(sizeof(T) + this->inlen - this->inpos) + " past end of buffer");
 	return 0;
 }

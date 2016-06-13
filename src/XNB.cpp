@@ -5,6 +5,7 @@
 #include <BinaryWriter.hpp>
 
 #include "LzxDecoder.hpp"
+#include "xna_exception.hpp"
 
 namespace XNA {
 namespace XNB {
@@ -22,7 +23,7 @@ void XNB::read(BinaryReader& reader)
 {
 	if(reader.GetFileSize() < 14)
 	{
-		throw std::string("file is too small to be XNB format");
+		throw xna_error("file is too small to be XNB format");
 		// 3: magic
 		// 1: platform
 		// 1: XNA version
@@ -36,7 +37,7 @@ void XNB::read(BinaryReader& reader)
 	std::string format = reader.ReadString(3);
 	if(format != "XNB")
 	{
-		throw ("Invalid format: " + format);
+		throw xna_error("Invalid format: " + format);
 	}
 
 	int8_t platform = reader.ReadInt8();
@@ -46,7 +47,7 @@ void XNB::read(BinaryReader& reader)
 	// 5 = XNA Game Studio 4.0
 	if(xna_version != 5)
 	{
-		throw ("Unhandled XNA version: " + std::to_string(xna_version));
+		throw xna_error("Unhandled XNA version: " + std::to_string(xna_version));
 	}
 
 	uint8_t flags = reader.ReadUInt8();
@@ -55,7 +56,7 @@ void XNB::read(BinaryReader& reader)
 	uint32_t file_length = reader.ReadUInt32();
 	if(file_length != reader.GetFileSize())
 	{
-		throw ("File length mismatch: " + std::to_string(file_length) + " should be " + std::to_string(reader.GetFileSize()));
+		throw xna_error("File length mismatch: " + std::to_string(file_length) + " should be " + std::to_string(reader.GetFileSize()));
 	}
 
 	if(compressed)
@@ -84,7 +85,7 @@ void XNB::read(BinaryReader& reader)
 	uint_fast64_t shared_resource_count = reader.Read7BitEncodedInt();
 	if(shared_resource_count > UINT32_MAX)
 	{
-		throw ("XNB::read: too many shared resources (" + std::to_string(shared_resource_count) + ")");
+		throw xna_error("XNB::read: too many shared resources (" + std::to_string(shared_resource_count) + ")");
 	}
 	// there is 1 primary asset before the shared resources
 	uint_fast64_t object_count = shared_resource_count + 1;
@@ -159,7 +160,7 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 		}
 		if(frame_size > decompressed_size - out_position)
 		{
-			throw std::string("XNB::decompress: bad data (frame size > decompressed size - output position)");
+			throw lzx_error("XNB::decompress: bad data (frame size > decompressed size - output position)");
 		}
 
 		std::unique_ptr<uint8_t[]> inBuf = reader.ReadBytes(block_size);
@@ -171,7 +172,7 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 
 	if(out_position != decompressed_size)
 	{
-		throw ("XNB::decompress: final output position (" + std::to_string(out_position) + ") does not match expected size (" + std::to_string(decompressed_size) + ")");
+		throw lzx_error("XNB::decompress: final output position (" + std::to_string(out_position) + ") does not match expected size (" + std::to_string(decompressed_size) + ")");
 	}
 
 	return xnbData;
