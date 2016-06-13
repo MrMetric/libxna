@@ -1,4 +1,4 @@
-#include "../include/xna_exception.hpp"
+#include "xna_exception.hpp"
 
 #include <string>
 using std::string;

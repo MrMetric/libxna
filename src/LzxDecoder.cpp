@@ -44,10 +44,13 @@
  */
 //#endregion
 
-#include "../include/LzxDecoder.hpp"
+#include "LzxDecoder.hpp"
+
+#include <algorithm>	// std::copy_n, std::fill_n
 #include <sstream>
-#include <algorithm> // std::copy_n
-#include "../include/xna_exception.hpp"
+#include <string>
+
+#include "xna_exception.hpp"
 
 #define MAKESTR(ss) static_cast<std::ostringstream&>(std::ostringstream().seekp(0) << ss).str()
 

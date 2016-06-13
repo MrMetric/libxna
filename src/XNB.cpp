@@ -1,9 +1,10 @@
-#include "../include/XNB.hpp"
+#include "XNB.hpp"
+
+#include <algorithm>
 
 #include <BinaryWriter.hpp>
-#include "../include/LzxDecoder.hpp"
 
-#include <algorithm> // std::copy_n
+#include "LzxDecoder.hpp"
 
 namespace XNA {
 namespace XNB {

@@ -44,7 +44,7 @@
  */
 //#endregion
 
-#include "../include/BitBuffer.hpp"
+#include "BitBuffer.hpp"
 
 #include <algorithm>
 

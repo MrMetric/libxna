@@ -43,6 +43,7 @@
 			<Add option="-Wall" />
 			<Add option="-std=c++14" />
 			<Add directory="../BinaryLib/include" />
+			<Add option="-iquote include" />
 		</Compiler>
 		<Unit filename="include/BitBuffer.hpp" />
 		<Unit filename="include/Content.hpp" />

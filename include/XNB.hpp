@@ -1,9 +1,11 @@
 #pragma once
 
-#include <vector>
-#include <cstdint>
 #include <memory>
+#include <stdint.h>
+#include <vector>
+
 #include <BinaryReader.hpp>
+
 #include "../include/Content.hpp"
 
 namespace XNA {

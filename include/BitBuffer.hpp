@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BinaryReader.hpp>
+#include <stdint.h>
 
 class BitBuffer
 {

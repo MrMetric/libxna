@@ -1,4 +1,4 @@
-#include "../include/Content.hpp"
+#include "Content.hpp"
 
 namespace XNA {
 namespace Content {
