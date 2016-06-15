@@ -149,7 +149,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 	BitBuffer bitbuf(inBuf, inLen);
 
 	uint_fast32_t window_posn = this->state_window_posn;
-	uint_fast32_t window_size = this->state_window_size;
+	const uint_fast32_t window_size = this->state_window_size;
 	uint_fast32_t R0 = this->state_R0;
 	uint_fast32_t R1 = this->state_R1;
 	uint_fast32_t R2 = this->state_R2;
@@ -157,7 +157,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 	// read header if necessary
 	if(!this->state_header_read)
 	{
-		uint32_t intel = bitbuf.ReadBits(1);
+		const uint32_t intel = bitbuf.ReadBits(1);
 		if(intel != 0)
 		{
 			throw lzx_error("LzxDecoder::Decompress: Intel E8 not supported");
@@ -174,8 +174,8 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 		{
 			this->state_block_type = static_cast<BLOCKTYPE>(bitbuf.ReadBits(3));
 
-			uint32_t hi = bitbuf.ReadBits(16);
-			uint32_t lo = bitbuf.ReadBits(8);
+			const uint32_t hi = bitbuf.ReadBits(16);
+			const uint32_t lo = bitbuf.ReadBits(8);
 			this->state_block_remaining = this->state_block_length = static_cast<uint32_t>((hi << 8) | lo);
 
 			switch(this->state_block_type)
@@ -616,7 +616,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 	}
 }
 
-void LzxDecoder::ReadLengths(uint8_t lens[], uint_fast32_t first, uint_fast32_t last, BitBuffer& bitbuf)
+void LzxDecoder::ReadLengths(uint8_t lens[], const uint_fast32_t first, const uint_fast32_t last, BitBuffer& bitbuf)
 {
 	// hufftbl pointer here?
 
@@ -668,7 +668,7 @@ void LzxDecoder::ReadLengths(uint8_t lens[], uint_fast32_t first, uint_fast32_t 
 	}
 }
 
-uint32_t LzxDecoder::ReadHuffSym(uint16_t* table, uint8_t* lengths, uint32_t nsyms, uint8_t nbits, BitBuffer& bitbuf)
+uint32_t LzxDecoder::ReadHuffSym(const uint16_t* table, const uint8_t* lengths, const uint32_t nsyms, const uint8_t nbits, BitBuffer& bitbuf)
 {
 	uint32_t i, j;
 	bitbuf.EnsureBits(16);

@@ -49,11 +49,11 @@ std::pair<uint32_t, uint32_t> Texture2D::get_mip_size(uint_fast32_t i)
 
 void Texture2D::read(BinaryReader& reader)
 {
-	int32_t surface_format_i = reader.ReadInt32();
+	const int32_t surface_format_i = reader.ReadInt32();
 	this->surface_format = static_cast<Texture2D_SurfaceFormat>(surface_format_i);
 	this->width = reader.ReadUInt32();
 	this->height = reader.ReadUInt32();
-	uint32_t mip_count = reader.ReadUInt32();
+	const uint32_t mip_count = reader.ReadUInt32();
 
 	switch(surface_format)
 	{
@@ -69,7 +69,7 @@ void Texture2D::read(BinaryReader& reader)
 
 	for(uint_fast32_t i = 0; i < mip_count; ++i)
 	{
-		uint32_t mip_size = reader.ReadUInt32();
+		const uint32_t mip_size = reader.ReadUInt32();
 		if(mip_size % 4 != 0)
 		{
 			throw xna_error("image data size is not a multiple of 4");
@@ -97,13 +97,13 @@ Sound::Sound(BinaryReader& reader)
 
 void Sound::read(BinaryReader& reader)
 {
-	uint32_t format_size = reader.ReadUInt32();
+	const uint32_t format_size = reader.ReadUInt32();
 	if(format_size != 18)
 	{
 		throw xna_error("unhandled format header size: " + std::to_string(format_size));
 	}
 
-	uint16_t format_i = reader.ReadUInt16();
+	const uint16_t format_i = reader.ReadUInt16();
 	this->format = static_cast<SoundFormat>(format_i);
 	if(this->format != SoundFormat::PCM)
 	{

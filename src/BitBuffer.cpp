@@ -48,7 +48,7 @@
 
 #include <algorithm>
 
-BitBuffer::BitBuffer(const uint8_t* inBuf, uint_fast32_t inlen)
+BitBuffer::BitBuffer(const uint8_t* inBuf, const uint_fast32_t inlen)
 {
 	this->buffer = 0;
 	this->bitsleft = 0;
@@ -58,29 +58,29 @@ BitBuffer::BitBuffer(const uint8_t* inBuf, uint_fast32_t inlen)
 	this->inlen = inlen;
 }
 
-void BitBuffer::EnsureBits(uint8_t bits)
+void BitBuffer::EnsureBits(const uint8_t bits)
 {
 	while(this->bitsleft < bits)
 	{
-		uint_fast16_t i = this->ReadUInt16();
-		uint_fast8_t amount2shift = sizeof(uint32_t)*8 - 16 - bitsleft;
+		const uint_fast16_t i = this->ReadUInt16();
+		const uint_fast8_t amount2shift = sizeof(uint32_t)*8 - 16 - bitsleft;
 		this->buffer |= static_cast<uint32_t>(i << amount2shift);
 		this->bitsleft += 16;
 	}
 }
 
-uint32_t BitBuffer::PeekBits(uint8_t bits) const
+uint32_t BitBuffer::PeekBits(const uint8_t bits) const
 {
 	return (this->buffer >> ((sizeof(uint32_t)*8) - bits));
 }
 
-void BitBuffer::RemoveBits(uint8_t bits)
+void BitBuffer::RemoveBits(const uint8_t bits)
 {
 	this->buffer <<= bits;
 	this->bitsleft -= bits;
 }
 
-uint32_t BitBuffer::ReadBits(uint8_t bits)
+uint32_t BitBuffer::ReadBits(const uint8_t bits)
 {
 	uint32_t ret = 0;
 
@@ -107,7 +107,7 @@ uint32_t BitBuffer::ReadUInt32()
 //#include <iostream>
 template <class type> type BitBuffer::ReadType()
 {
-	uint_fast32_t maxpos = this->inpos + sizeof(type) - 1;
+	const uint_fast32_t maxpos = this->inpos + sizeof(type) - 1;
 	//std::cout << "read " << sizeof(type) << " bytes at " << this->inpos << " with bufsize " << this->inlen << "\n";
 	if(maxpos < this->inlen)
 	{

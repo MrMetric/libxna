@@ -34,26 +34,26 @@ void XNB::read(BinaryReader& reader)
 		// TODO: determine higher minimum
 	}
 
-	std::string format = reader.ReadString(3);
+	const std::string format = reader.ReadString(3);
 	if(format != "XNB")
 	{
 		throw xna_error("Invalid format: " + format);
 	}
 
-	int8_t platform = reader.ReadInt8();
+	const int8_t platform = reader.ReadInt8();
 	this->platform = static_cast<Platform>(platform);
 
-	uint8_t xna_version = reader.ReadUInt8();
+	const uint8_t xna_version = reader.ReadUInt8();
 	// 5 = XNA Game Studio 4.0
 	if(xna_version != 5)
 	{
 		throw xna_error("Unhandled XNA version: " + std::to_string(xna_version));
 	}
 
-	uint8_t flags = reader.ReadUInt8();
+	const uint8_t flags = reader.ReadUInt8();
 
-	bool compressed = (flags & XNA::XNB::Flag::compressed) != 0;
-	uint32_t file_length = reader.ReadUInt32();
+	const bool compressed = (flags & XNA::XNB::Flag::compressed) != 0;
+	const uint32_t file_length = reader.ReadUInt32();
 	if(file_length != reader.GetFileSize())
 	{
 		throw xna_error("File length mismatch: " + std::to_string(file_length) + " should be " + std::to_string(reader.GetFileSize()));
@@ -61,34 +61,34 @@ void XNB::read(BinaryReader& reader)
 
 	if(compressed)
 	{
-		uint_fast64_t read_length = file_length - 14;
-		uint_fast64_t decompressed_size = reader.ReadUInt32();
+		const uint_fast64_t read_length = file_length - 14;
+		const uint_fast64_t decompressed_size = reader.ReadUInt32();
 		std::unique_ptr<uint8_t[]> compressed_data = reader.ReadBytes(read_length);
 		std::unique_ptr<uint8_t[]> decompressed_data = XNB::decompress(std::move(compressed_data), read_length, decompressed_size);
 		reader.ChangeFile(std::move(decompressed_data), decompressed_size);
 	}
 	else
 	{
-		uint_fast64_t read_length = file_length - 10;
+		const uint_fast64_t read_length = file_length - 10;
 		reader.ChangeFile(reader.ReadBytes(read_length), read_length);
 	}
 
-	uint_fast64_t type_count = reader.Read7BitEncodedInt();
+	const uint_fast64_t type_count = reader.Read7BitEncodedInt();
 	for(uint_fast64_t i = 0; i < type_count; ++i)
 	{
-		std::string type_reader_name = reader.ReadStringMS();
-		int32_t type_reader_version = reader.ReadInt32();
+		const std::string type_reader_name = reader.ReadStringMS();
+		const int32_t type_reader_version = reader.ReadInt32();
 		std::pair<std::string, int32_t> type_reader = std::make_pair(type_reader_name, type_reader_version);
 		this->type_readers.push_back(type_reader);
 	}
 
-	uint_fast64_t shared_resource_count = reader.Read7BitEncodedInt();
+	const uint_fast64_t shared_resource_count = reader.Read7BitEncodedInt();
 	if(shared_resource_count > UINT32_MAX)
 	{
 		throw xna_error("XNB::read: too many shared resources (" + std::to_string(shared_resource_count) + ")");
 	}
 	// there is 1 primary asset before the shared resources
-	uint_fast64_t object_count = shared_resource_count + 1;
+	const uint_fast64_t object_count = shared_resource_count + 1;
 
 	for(uint_fast64_t i = 0; i < object_count; ++i)
 	{
@@ -112,10 +112,10 @@ std::shared_ptr<XNA::Content::ContentBase> XNB::read_object(BinaryReader& reader
 
 	type_id -= 1;
 
-	std::pair<std::string, int32_t> type_reader_info = this->type_readers[type_id];
-	std::string type_reader_qualified = type_reader_info.first;
-	//int32_t type_reader_version = type_reader_info.second;
-	std::string type_reader_name = type_reader_qualified.substr(0, type_reader_qualified.find(','));
+	const std::pair<std::string, int32_t> type_reader_info = this->type_readers[type_id];
+	const std::string type_reader_qualified = type_reader_info.first;
+	//const int32_t type_reader_version = type_reader_info.second;
+	const std::string type_reader_name = type_reader_qualified.substr(0, type_reader_qualified.find(','));
 
 	return XNA::Content::ContentBase::Read(reader, type_reader_name);
 }
