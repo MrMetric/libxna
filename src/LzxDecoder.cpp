@@ -47,12 +47,9 @@
 #include "LzxDecoder.hpp"
 
 #include <algorithm>	// std::copy_n, std::fill_n
-#include <sstream>
 #include <string>
 
 #include "xna_exception.hpp"
-
-#define MAKESTR(ss) static_cast<std::ostringstream&>(std::ostringstream().seekp(0) << ss).str()
 
 LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 {
@@ -220,7 +217,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw lzx_error(MAKESTR("LzxDecoder::Decompress: invalid state block type:  " << static_cast<uint_fast16_t>(this->state_block_type)));
+					throw lzx_error("LzxDecoder::Decompress: invalid state block type:  " + to_string(this->state_block_type));
 				}
 			}
 		}
@@ -490,7 +487,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw lzx_error(MAKESTR("LzxDecoder::Decompress: invalid state block type: " << static_cast<uint_fast16_t>(this->state_block_type) << "\n"));
+					throw lzx_error("LzxDecoder::Decompress: invalid state block type: " + to_string(this->state_block_type));
 				}
 			}
 		}
@@ -689,4 +686,16 @@ uint32_t LzxDecoder::ReadHuffSym(const uint16_t* table, const uint8_t* lengths, 
 	bitbuf.RemoveBits(static_cast<uint8_t>(j));
 
 	return i;
+}
+
+std::string LzxDecoder::to_string(const BLOCKTYPE type)
+{
+	switch(type)
+	{
+		case BLOCKTYPE::INVALID:		return "invalid";
+		case BLOCKTYPE::VERBATIM:		return "verbatim";
+		case BLOCKTYPE::ALIGNED:		return "aligned";
+		case BLOCKTYPE::UNCOMPRESSED:	return "uncompressed";
+		default: return std::to_string(static_cast<uint8_t>(type));
+	}
 }

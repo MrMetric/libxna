@@ -107,7 +107,7 @@ std::shared_ptr<XNA::Content::ContentBase> XNB::read_object(BinaryReader& reader
 
 	if(type_id > this->type_readers.size())
 	{
-		throw ("type id is too high (" + std::to_string(type_id) + " > " + std::to_string(this->type_readers.size()) + ")");
+		throw xna_error("type id is too high (" + std::to_string(type_id) + " > " + std::to_string(this->type_readers.size()) + ")");
 	}
 
 	type_id -= 1;
@@ -127,7 +127,7 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 	std::unique_ptr<uint8_t[]> xnbData(new uint8_t[decompressed_size]);
 	uint_fast32_t out_position = 0;
 
-	LzxDecoder dec(16); // window = 16 bits, window size = 65536 bytes
+	LzxDecoder lzx(16); // window = 16 bits, window size = 65536 bytes
 	uint_fast32_t pos = 0;
 	while(pos < compressed_size)
 	{
@@ -164,7 +164,7 @@ std::unique_ptr<uint8_t[]> XNB::decompress(std::unique_ptr<uint8_t[]> compressed
 		}
 
 		std::unique_ptr<uint8_t[]> inBuf = reader.ReadBytes(block_size);
-		dec.Decompress(inBuf.get(), block_size, xnbData.get() + out_position, frame_size);
+		lzx.Decompress(inBuf.get(), block_size, xnbData.get() + out_position, frame_size);
 		out_position += frame_size;
 
 		pos += block_size;

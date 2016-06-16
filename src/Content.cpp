@@ -120,7 +120,7 @@ void Sound::read(BinaryReader& reader)
 	{
 		throw xna_error("bits per sample is not a multiple of 8: " + std::to_string(bits_per_sample));
 	}
-	uint16_t bytes_per_sample = bits_per_sample / 8;
+	const uint16_t bytes_per_sample = bits_per_sample / 8;
 
 	if(average_byte_rate != sample_rate * channel_count * bytes_per_sample)
 	{
@@ -132,13 +132,13 @@ void Sound::read(BinaryReader& reader)
 		throw xna_error("block_align does not match channel_count * bits_per_sample / 8");
 	}
 
-	uint16_t extra_info_size = reader.ReadUInt16();
+	const uint16_t extra_info_size = reader.ReadUInt16();
 	if(extra_info_size != 0)
 	{
 		throw xna_error("extra info size is " + std::to_string(extra_info_size));
 	}
 
-	uint32_t data_size = reader.ReadUInt32();
+	const uint32_t data_size = reader.ReadUInt32();
 	if(data_size == 0)
 	{
 		throw xna_error("sound is empty");
@@ -146,9 +146,9 @@ void Sound::read(BinaryReader& reader)
 	std::unique_ptr<uint8_t[]> data_ptr(reader.ReadBytes(data_size));
 	this->data = std::vector<uint8_t>(data_ptr.get(), data_ptr.get() + data_size);
 
-	uint32_t loop_start = reader.ReadUInt32();
-	uint32_t loop_end = reader.ReadUInt32();
-	uint32_t duration_ms = reader.ReadUInt32();
+	const uint32_t loop_start = reader.ReadUInt32();
+	const uint32_t loop_end = reader.ReadUInt32();
+	const uint32_t duration_ms = reader.ReadUInt32();
 	// TODO
 }
 

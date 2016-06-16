@@ -18,7 +18,7 @@ class BitBuffer
 		uint_fast32_t inpos;
 
 	private:
-		template <class type> type ReadType();
+		template <typename T> T ReadType();
 
 		uint_fast32_t inlen;
 		const uint8_t* inBuf;

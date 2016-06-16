@@ -4,6 +4,8 @@
 #include <BinaryWriter.hpp>
 #include "BitBuffer.hpp"
 
+#include <string>
+
 #define MIN_MATCH					2
 #define MAX_MATCH					257
 #define NUM_CHARS					256
@@ -44,6 +46,8 @@ class LzxDecoder
 			ALIGNED = 2,
 			UNCOMPRESSED = 3,
 		};
+		static std::string to_string(BLOCKTYPE);
+
 		uint_fast32_t		state_R0, state_R1, state_R2; 	// for the LRU offset system
 		uint16_t			state_main_elements;			// number of main tree elements
 		bool				state_header_read;				// have we started decoding at all yet?

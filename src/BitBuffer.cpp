@@ -63,8 +63,8 @@ void BitBuffer::EnsureBits(const uint8_t bits)
 	while(this->bitsleft < bits)
 	{
 		const uint_fast16_t i = this->ReadUInt16();
-		const uint_fast8_t amount2shift = sizeof(uint32_t)*8 - 16 - bitsleft;
-		this->buffer |= static_cast<uint32_t>(i << amount2shift);
+		const uint_fast8_t amount_to_shift = sizeof(uint32_t)*8 - 16 - bitsleft;
+		this->buffer |= static_cast<uint32_t>(i << amount_to_shift);
 		this->bitsleft += 16;
 	}
 }
@@ -104,17 +104,15 @@ uint32_t BitBuffer::ReadUInt32()
 	return this->ReadType<uint32_t>();
 }
 
-//#include <iostream>
-template <class type> type BitBuffer::ReadType()
+template <typename T> T BitBuffer::ReadType()
 {
-	const uint_fast32_t maxpos = this->inpos + sizeof(type) - 1;
-	//std::cout << "read " << sizeof(type) << " bytes at " << this->inpos << " with bufsize " << this->inlen << "\n";
+	const uint_fast32_t maxpos = this->inpos + sizeof(T) - 1;
 	if(maxpos < this->inlen)
 	{
-		uint8_t buf[sizeof(type)];
-		std::copy_n(this->inBuf + this->inpos, sizeof(type), buf);
-		this->inpos += sizeof(type);
-		return *reinterpret_cast<type*>(buf);
+		uint8_t buf[sizeof(T)];
+		std::copy_n(this->inBuf + this->inpos, sizeof(T), buf);
+		this->inpos += sizeof(T);
+		return *reinterpret_cast<T*>(buf);
 	}
 	//throw xna_error("tried to read " + std::to_string(sizeof(T) + this->inlen - this->inpos) + " past end of buffer");
 	return 0;
