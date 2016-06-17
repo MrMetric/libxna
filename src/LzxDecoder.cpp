@@ -53,9 +53,10 @@
 
 LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 {
+	// LZX supports window sizes of 2^15 (32 KiB) to 2^21 (2 MiB)
 	if(window_bits < 15 || window_bits > 21)
 	{
-		throw lzx_error("LzxDecoder: unsupported window size range: " + std::to_string(window_bits));
+		throw lzx_error("LzxDecoder: unsupported window size exponent: " + std::to_string(window_bits));
 	}
 
 	this->state.window_size = 1 << window_bits;
@@ -80,7 +81,6 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 		j += 1 << this->extra_bits[i];
 	}
 
-	// calculate required position slots
 	uint_fast32_t posn_slots;
 	if(window_bits == 20)
 	{
@@ -517,7 +517,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 	this->state.R2 = R2;
 }
 
-void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[], uint16_t table[])
+void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t* length, uint16_t* table)
 {
 	uint_fast32_t leaf;
 	uint8_t bit_num = 1;
@@ -615,7 +615,7 @@ void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[]
 	}
 }
 
-void LzxDecoder::ReadLengths(uint8_t lens[], const uint_fast32_t first, const uint_fast32_t last, BitBuffer& bitbuf)
+void LzxDecoder::ReadLengths(uint8_t* lens, const uint_fast32_t first, const uint_fast32_t last, BitBuffer& bitbuf)
 {
 	// hufftbl pointer here?
 
