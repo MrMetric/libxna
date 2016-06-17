@@ -104,8 +104,8 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	this->state.block_type = BLOCKTYPE::INVALID;
 
 	// initialize tables to 0 (because deltas will be applied to them)
-	std::fill_n(this->state.MAINTREE_len, MAINTREE_MAXSYMBOLS, 0);
-	std::fill_n(this->state.LENGTH_len, LENGTH_MAXSYMBOLS, 0);
+	this->state.MAINTREE_len.fill(0);
+	this->state.LENGTH_len.fill(0);
 }
 
 LzxDecoder::~LzxDecoder()
@@ -183,7 +183,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 					{
 						this->state.ALIGNED_len[i] = static_cast<uint8_t>(bitbuf.ReadBits(3));
 					}
-					this->MakeDecodeTable(ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, this->state.ALIGNED_len, this->state.ALIGNED_table);
+					this->MakeDecodeTable(ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, this->state.ALIGNED_len.data(), this->state.ALIGNED_table.data());
 					// rest of aligned header is same as verbatim
 					#ifdef __clang__
 					[[clang::fallthrough]];
@@ -192,12 +192,12 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 				case BLOCKTYPE::VERBATIM:
 				{
-					this->ReadLengths(this->state.MAINTREE_len, 0, 256, bitbuf);
-					this->ReadLengths(this->state.MAINTREE_len, 256, this->state.main_elements, bitbuf);
-					this->MakeDecodeTable(MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, this->state.MAINTREE_len, this->state.MAINTREE_table);
+					this->ReadLengths(this->state.MAINTREE_len.data(), 0, 256, bitbuf);
+					this->ReadLengths(this->state.MAINTREE_len.data(), 256, this->state.main_elements, bitbuf);
+					this->MakeDecodeTable(MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, this->state.MAINTREE_len.data(), this->state.MAINTREE_table.data());
 
-					this->ReadLengths(this->state.LENGTH_len, 0, NUM_SECONDARY_LENGTHS, bitbuf);
-					this->MakeDecodeTable(LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, this->state.LENGTH_len, this->state.LENGTH_table);
+					this->ReadLengths(this->state.LENGTH_len.data(), 0, NUM_SECONDARY_LENGTHS, bitbuf);
+					this->MakeDecodeTable(LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, this->state.LENGTH_len.data(), this->state.LENGTH_table.data());
 					break;
 				}
 
@@ -260,7 +260,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				{
 					while(this_run > 0)
 					{
-						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table, this->state.MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table.data(), this->state.MAINTREE_len.data(), MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
 
 						if(main_element < NUM_CHARS)
 						{
@@ -276,7 +276,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
 							if(match_length == NUM_PRIMARY_LENGTHS)
 							{
-								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table, this->state.LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table.data(), this->state.LENGTH_len.data(), LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
 								match_length += length_footer;
 							}
 							match_length += MIN_MATCH;
@@ -359,7 +359,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				{
 					while(this_run > 0)
 					{
-						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table, this->state.MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table.data(), this->state.MAINTREE_len.data(), MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
 
 						if(main_element < NUM_CHARS)
 						{
@@ -375,7 +375,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
 							if(match_length == NUM_PRIMARY_LENGTHS)
 							{
-								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table, this->state.LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table.data(), this->state.LENGTH_len.data(), LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
 								match_length += length_footer;
 							}
 							match_length += MIN_MATCH;
@@ -394,13 +394,13 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
 									match_offset += (verbatim_bits << 3);
 
-									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table, this->state.ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table.data(), this->state.ALIGNED_len.data(), ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
 									match_offset += aligned_bits;
 								}
 								else if(extra == 3)
 								{
 									// aligned bits only
-									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table, this->state.ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table.data(), this->state.ALIGNED_len.data(), ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
 									match_offset += aligned_bits;
 								}
 								else if(extra > 0) // extra==1, extra==2
@@ -623,11 +623,11 @@ void LzxDecoder::ReadLengths(uint8_t lens[], const uint_fast32_t first, const ui
 	{
 		this->state.PRETREE_len[x] = static_cast<uint8_t>(bitbuf.ReadBits(4));
 	}
-	this->MakeDecodeTable(PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, this->state.PRETREE_len, this->state.PRETREE_table);
+	this->MakeDecodeTable(PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, this->state.PRETREE_len.data(), this->state.PRETREE_table.data());
 
 	for(uint_fast32_t x = first; x < last; )
 	{
-		int_fast32_t z = this->ReadHuffSym(this->state.PRETREE_table, this->state.PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
+		int_fast32_t z = this->ReadHuffSym(this->state.PRETREE_table.data(), this->state.PRETREE_len.data(), PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
 		if(z == 17)
 		{
 			uint_fast32_t y = bitbuf.ReadBits(4);
@@ -646,7 +646,7 @@ void LzxDecoder::ReadLengths(uint8_t lens[], const uint_fast32_t first, const ui
 		{
 			uint_fast32_t y = bitbuf.ReadBits(1);
 			y += 4;
-			z = ReadHuffSym(this->state.PRETREE_table, this->state.PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
+			z = ReadHuffSym(this->state.PRETREE_table.data(), this->state.PRETREE_len.data(), PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
 			z = lens[x] - z;
 			if(z < 0)
 			{

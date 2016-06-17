@@ -1,10 +1,11 @@
 #pragma once
 
+#include <array>
+#include <string>
+
 #include <BinaryReader.hpp>
 #include <BinaryWriter.hpp>
 #include "BitBuffer.hpp"
-
-#include <string>
 
 #define MIN_MATCH					2
 #define MAX_MATCH					257
@@ -36,8 +37,8 @@ class LzxDecoder
 		void ReadLengths(uint8_t lens[], uint_fast32_t first, uint_fast32_t last, BitBuffer& bitbuf);
 		uint32_t ReadHuffSym(const uint16_t* table, const uint8_t* lengths, uint32_t nsyms, uint8_t nbits, BitBuffer& bitbuf);
 
-		uint32_t position_base[51];
-		uint8_t extra_bits[52];
+		std::array<uint32_t, 51> position_base;
+		std::array<uint8_t, 52> extra_bits;
 
 		enum class BLOCKTYPE : uint8_t
 		{
@@ -61,17 +62,15 @@ class LzxDecoder
 			uint32_t			block_length;		// uncompressed length of this block
 			uint32_t			block_remaining;	// uncompressed bytes still left to decode
 
-			uint8_t				PRETREE_len[PRETREE_MAXSYMBOLS];
-			uint16_t			PRETREE_table[(1 << PRETREE_TABLEBITS) + (PRETREE_MAXSYMBOLS << 1)];
+			std::array<uint8_t,  PRETREE_MAXSYMBOLS>  PRETREE_len;
+			std::array<uint8_t, MAINTREE_MAXSYMBOLS> MAINTREE_len;
+			std::array<uint8_t,   LENGTH_MAXSYMBOLS>   LENGTH_len;
+			std::array<uint8_t,  ALIGNED_MAXSYMBOLS>  ALIGNED_len;
 
-			uint8_t				MAINTREE_len[MAINTREE_MAXSYMBOLS];
-			uint16_t			MAINTREE_table[(1 << MAINTREE_TABLEBITS) + (MAINTREE_MAXSYMBOLS << 1)];
-
-			uint8_t				LENGTH_len[LENGTH_MAXSYMBOLS];
-			uint16_t			LENGTH_table[(1 << LENGTH_TABLEBITS) + (LENGTH_MAXSYMBOLS << 1)];
-
-			uint8_t				ALIGNED_len[ALIGNED_MAXSYMBOLS];
-			uint16_t			ALIGNED_table[(1 << ALIGNED_TABLEBITS) + (ALIGNED_MAXSYMBOLS << 1)];
+			std::array<uint16_t, (1 <<  PRETREE_TABLEBITS) + ( PRETREE_MAXSYMBOLS << 1)>  PRETREE_table;
+			std::array<uint16_t, (1 << MAINTREE_TABLEBITS) + (MAINTREE_MAXSYMBOLS << 1)> MAINTREE_table;
+			std::array<uint16_t, (1 <<   LENGTH_TABLEBITS) + (  LENGTH_MAXSYMBOLS << 1)>   LENGTH_table;
+			std::array<uint16_t, (1 <<  ALIGNED_TABLEBITS) + ( ALIGNED_MAXSYMBOLS << 1)>  ALIGNED_table;
 
 		} state;
 };
