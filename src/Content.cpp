@@ -5,6 +5,46 @@
 namespace XNA {
 namespace Content {
 
+using std::to_string;
+
+std::string to_string(const Texture2D_SurfaceFormat f)
+{
+	switch(f)
+	{
+		case Texture2D_SurfaceFormat::RGBA8888:			return "RGBA8888";
+		case Texture2D_SurfaceFormat::BGR565:			return "BGR565";
+		case Texture2D_SurfaceFormat::BGRA5551:			return "BGRA5551";
+		case Texture2D_SurfaceFormat::BGRA4444:			return "BGRA4444";
+		case Texture2D_SurfaceFormat::DXT1:				return "DXT1";
+		case Texture2D_SurfaceFormat::DXT3:				return "DXT3";
+		case Texture2D_SurfaceFormat::DXT5:				return "DXT5";
+		case Texture2D_SurfaceFormat::NormalizedByte2:	return "NormalizedByte2";
+		case Texture2D_SurfaceFormat::NormalizedByte4:	return "NormalizedByte4";
+		case Texture2D_SurfaceFormat::RGBA1010102:		return "RGBA1010102";
+		case Texture2D_SurfaceFormat::RG32:				return "RG32";
+		case Texture2D_SurfaceFormat::RGBA64:			return "RGBA64";
+		case Texture2D_SurfaceFormat::Alpha8:			return "Alpha8";
+		case Texture2D_SurfaceFormat::Single:			return "Single";
+		case Texture2D_SurfaceFormat::Vector2:			return "Vector2";
+		case Texture2D_SurfaceFormat::Vector4:			return "Vector4";
+		case Texture2D_SurfaceFormat::HalfSingle:		return "HalfSingle";
+		case Texture2D_SurfaceFormat::HalfVector2:		return "HalfVector2";
+		case Texture2D_SurfaceFormat::HalfVector4:		return "HalfVector4";
+		case Texture2D_SurfaceFormat::HdrBlendable:		return "HdrBlendable";
+	}
+	return to_string(static_cast<int32_t>(f));
+}
+
+std::string to_string(const SoundFormat f)
+{
+	switch(f)
+	{
+		case SoundFormat::PCM:		return "PCM";
+		case SoundFormat::ADPCM:	return "ADPCM";
+	}
+	return to_string(static_cast<uint16_t>(f));
+}
+
 std::shared_ptr<ContentBase> ContentBase::Read(BinaryReader& reader, const std::string& type_reader_name)
 {
 	if(type_reader_name == "Microsoft.Xna.Framework.Content.Texture2DReader")
@@ -33,7 +73,7 @@ std::vector<uint8_t> Texture2D::get_mip_data(uint_fast32_t i)
 {
 	if(i >= this->mips.size())
 	{
-		throw xna_error("invalid mip index (" + std::to_string(i) + ")");
+		throw xna_error("invalid mip index (" + to_string(i) + ")");
 	}
 	return this->mips[i];
 }
@@ -42,7 +82,7 @@ std::pair<uint32_t, uint32_t> Texture2D::get_mip_size(uint_fast32_t i)
 {
 	if(i >= this->mips.size())
 	{
-		throw xna_error("invalid mip index (" + std::to_string(i) + ")");
+		throw xna_error("invalid mip index (" + to_string(i) + ")");
 	}
 	return std::make_pair(this->width >> i, this->height >> i);
 }
@@ -100,14 +140,14 @@ void Sound::read(BinaryReader& reader)
 	const uint32_t format_size = reader.ReadUInt32();
 	if(format_size != 18)
 	{
-		throw xna_error("unhandled format header size: " + std::to_string(format_size));
+		throw xna_error("unhandled format header size: " + to_string(format_size));
 	}
 
 	const uint16_t format_i = reader.ReadUInt16();
 	this->format = static_cast<SoundFormat>(format_i);
 	if(this->format != SoundFormat::PCM)
 	{
-		throw xna_error("unhandled sound format: " + std::to_string(format_i));
+		throw xna_error("unhandled sound format: " + to_string(this->format));
 	}
 
 	// see https://msdn.microsoft.com/en-us/library/windows/desktop/dd390970%28v=vs.85%29.aspx
@@ -118,7 +158,7 @@ void Sound::read(BinaryReader& reader)
 	this->bits_per_sample = reader.ReadUInt16();
 	if(bits_per_sample % 8 != 0)
 	{
-		throw xna_error("bits per sample is not a multiple of 8: " + std::to_string(bits_per_sample));
+		throw xna_error("bits per sample is not a multiple of 8: " + to_string(bits_per_sample));
 	}
 	const uint16_t bytes_per_sample = bits_per_sample / 8;
 
@@ -135,7 +175,7 @@ void Sound::read(BinaryReader& reader)
 	const uint16_t extra_info_size = reader.ReadUInt16();
 	if(extra_info_size != 0)
 	{
-		throw xna_error("extra info size is " + std::to_string(extra_info_size));
+		throw xna_error("extra info size is " + to_string(extra_info_size));
 	}
 
 	const uint32_t data_size = reader.ReadUInt32();

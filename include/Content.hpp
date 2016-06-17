@@ -46,6 +46,7 @@ enum class Texture2D_SurfaceFormat : int32_t
 	HalfVector4 = 18,
 	HdrBlendable = 19,
 };
+std::string to_string(Texture2D_SurfaceFormat);
 
 class Texture2D : public ContentBase
 {
@@ -71,6 +72,7 @@ enum class SoundFormat : uint16_t
 	PCM = 1,
 	ADPCM = 2,
 };
+std::string to_string(SoundFormat);
 
 class Sound : public ContentBase
 {
