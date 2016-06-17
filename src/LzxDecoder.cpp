@@ -253,222 +253,151 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				throw lzx_error("LzxDecoder::Decompress: invalid data (window position + this_run > window size)");
 			}
 
+			auto verbatim_or_aligned = [this, &this_run, &bitbuf, &window_size, &window_posn, &R0, &R1, &R2](
+				std::function<void(uint_fast32_t&)> match_offset_more_than_2
+			)
+			{
+				while(this_run > 0)
+				{
+					uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table.data(), this->state.MAINTREE_len.data(), MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+
+					if(main_element < NUM_CHARS)
+					{
+						// literal: 0 to NUM_CHARS-1
+						this->state.window[window_posn++] = static_cast<uint8_t>(main_element);
+						--this_run;
+					}
+					else
+					{
+						// match: NUM_CHARS + ((slot<<3) | length_header (3 bits))
+						main_element -= NUM_CHARS;
+
+						uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
+						if(match_length == NUM_PRIMARY_LENGTHS)
+						{
+							uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table.data(), this->state.LENGTH_len.data(), LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+							match_length += length_footer;
+						}
+						match_length += MIN_MATCH;
+
+						uint_fast32_t match_offset = main_element >> 3;
+
+						if(match_offset > 2)
+						{
+							// not repeated offset
+							match_offset_more_than_2(match_offset);
+
+							// update repeated offset LRU queue
+							R2 = R1;
+							R1 = R0;
+							R0 = match_offset;
+						}
+						else if(match_offset == 0)
+						{
+							match_offset = R0;
+						}
+						else if(match_offset == 1)
+						{
+							match_offset = R1;
+							R1 = R0;
+							R0 = match_offset;
+						}
+						else // match_offset == 2
+						{
+							match_offset = R2;
+							R2 = R0;
+							R0 = match_offset;
+						}
+
+						uint_fast32_t runsrc;
+						uint_fast32_t rundest = window_posn;
+
+						if(match_length > this_run)
+						{
+							throw lzx_error("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
+						}
+						this_run -= match_length;
+
+						// copy any wrapped around source data
+						if(window_posn >= match_offset)
+						{
+							// no wrap
+							runsrc = rundest - match_offset;
+						}
+						else
+						{
+							runsrc = rundest + (window_size - match_offset);
+							uint_fast32_t copy_length = match_offset - window_posn;
+							if(copy_length < match_length)
+							{
+								match_length -= copy_length;
+								window_posn += copy_length;
+								copy_n_safe(this->state.window, copy_length, runsrc, rundest);
+								runsrc = 0;
+							}
+						}
+						window_posn += match_length;
+
+						// copy match data
+						copy_n_safe(this->state.window, match_length, runsrc, rundest);
+					}
+				}
+			};
+
 			switch(this->state.block_type)
 			{
 				case BLOCKTYPE::VERBATIM:
 				{
-					while(this_run > 0)
+					verbatim_or_aligned([this, &bitbuf](uint_fast32_t& match_offset)
 					{
-						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table.data(), this->state.MAINTREE_len.data(), MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
-
-						if(main_element < NUM_CHARS)
+						if(match_offset != 3)
 						{
-							// literal: 0 to NUM_CHARS-1
-							this->state.window[window_posn++] = static_cast<uint8_t>(main_element);
-							--this_run;
+							uint8_t extra = this->extra_bits[match_offset];
+							uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
+							match_offset = this->position_base[match_offset] - 2 + verbatim_bits;
 						}
 						else
 						{
-							// match: NUM_CHARS + ((slot<<3) | length_header (3 bits))
-							main_element -= NUM_CHARS;
-
-							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
-							if(match_length == NUM_PRIMARY_LENGTHS)
-							{
-								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table.data(), this->state.LENGTH_len.data(), LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
-								match_length += length_footer;
-							}
-							match_length += MIN_MATCH;
-
-							uint_fast32_t match_offset = main_element >> 3;
-
-							if(match_offset > 2)
-							{
-								// not repeated offset
-								if(match_offset != 3)
-								{
-									uint8_t extra = this->extra_bits[match_offset];
-									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
-									match_offset = this->position_base[match_offset] - 2 + verbatim_bits;
-								}
-								else
-								{
-									match_offset = 1;
-								}
-
-								// update repeated offset LRU queue
-								R2 = R1;
-								R1 = R0;
-								R0 = match_offset;
-							}
-							else if(match_offset == 0)
-							{
-								match_offset = R0;
-							}
-							else if(match_offset == 1)
-							{
-								match_offset = R1;
-								R1 = R0;
-								R0 = match_offset;
-							}
-							else // match_offset == 2
-							{
-								match_offset = R2;
-								R2 = R0;
-								R0 = match_offset;
-							}
-
-							uint_fast32_t runsrc;
-							uint_fast32_t rundest = window_posn;
-
-							if(match_length > this_run)
-							{
-								throw lzx_error("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
-							}
-							this_run -= match_length;
-
-							// copy any wrapped around source data
-							if(window_posn >= match_offset)
-							{
-								// no wrap
-								runsrc = rundest - match_offset;
-							}
-							else
-							{
-								runsrc = rundest + (window_size - match_offset);
-								uint_fast32_t copy_length = match_offset - window_posn;
-								if(copy_length < match_length)
-								{
-									match_length -= copy_length;
-									window_posn += copy_length;
-									copy_n_safe(this->state.window, copy_length, runsrc, rundest);
-									runsrc = 0;
-								}
-							}
-							window_posn += match_length;
-
-							// copy match data
-							copy_n_safe(this->state.window, match_length, runsrc, rundest);
+							match_offset = 1;
 						}
-					}
+					});
 					break;
 				}
 
 				case BLOCKTYPE::ALIGNED:
 				{
-					while(this_run > 0)
+					verbatim_or_aligned([this, &bitbuf](uint_fast32_t& match_offset)
 					{
-						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table.data(), this->state.MAINTREE_len.data(), MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
-
-						if(main_element < NUM_CHARS)
+						uint8_t extra = this->extra_bits[match_offset];
+						match_offset = this->position_base[match_offset] - 2;
+						if(extra > 3)
 						{
-							// literal: 0 to NUM_CHARS-1
-							this->state.window[window_posn++] = static_cast<uint8_t>(main_element);
-							--this_run;
+							// verbatim and aligned bits
+							extra -= 3;
+							uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
+							match_offset += (verbatim_bits << 3);
+
+							uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table.data(), this->state.ALIGNED_len.data(), ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+							match_offset += aligned_bits;
 						}
-						else
+						else if(extra == 3)
 						{
-							// match: NUM_CHARS + ((slot<<3) | length_header (3 bits))
-							main_element -= NUM_CHARS;
-
-							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
-							if(match_length == NUM_PRIMARY_LENGTHS)
-							{
-								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table.data(), this->state.LENGTH_len.data(), LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
-								match_length += length_footer;
-							}
-							match_length += MIN_MATCH;
-
-							uint_fast32_t match_offset = main_element >> 3;
-
-							if(match_offset > 2)
-							{
-								// not repeated offset
-								uint8_t extra = this->extra_bits[match_offset];
-								match_offset = this->position_base[match_offset] - 2;
-								if(extra > 3)
-								{
-									// verbatim and aligned bits
-									extra -= 3;
-									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
-									match_offset += (verbatim_bits << 3);
-
-									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table.data(), this->state.ALIGNED_len.data(), ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
-									match_offset += aligned_bits;
-								}
-								else if(extra == 3)
-								{
-									// aligned bits only
-									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table.data(), this->state.ALIGNED_len.data(), ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
-									match_offset += aligned_bits;
-								}
-								else if(extra > 0) // extra==1, extra==2
-								{
-									// verbatim bits only
-									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
-									match_offset += verbatim_bits;
-								}
-								else // extra == 0
-								{
-									// ???
-									match_offset = 1;
-								}
-
-								// update repeated offset LRU queue
-								R2 = R1;
-								R1 = R0;
-								R0 = match_offset;
-							}
-							else if(match_offset == 0)
-							{
-								match_offset = R0;
-							}
-							else if(match_offset == 1)
-							{
-								match_offset = R1;
-								R1 = R0;
-								R0 = match_offset;
-							}
-							else // match_offset == 2
-							{
-								match_offset = R2;
-								R2 = R0;
-								R0 = match_offset;
-							}
-
-							uint_fast32_t runsrc;
-							uint_fast32_t rundest = window_posn;
-
-							if(match_length > this_run)
-							{
-								throw lzx_error("LzxDecoder::Decompress: match_length > this_run (" + std::to_string(match_length) + " > " + std::to_string(this_run) + ")");
-							}
-							this_run -= match_length;
-
-							// copy any wrapped around source data
-							if(window_posn >= match_offset)
-							{
-								// no wrap
-								runsrc = rundest - match_offset;
-							}
-							else
-							{
-								runsrc = rundest + (window_size - match_offset);
-								uint_fast32_t copy_length = match_offset - window_posn;
-								if(copy_length < match_length)
-								{
-									match_length -= copy_length;
-									window_posn += copy_length;
-									copy_n_safe(this->state.window, copy_length, runsrc, rundest);
-									runsrc = 0;
-								}
-							}
-							window_posn += match_length;
-
-							// copy match data
-							copy_n_safe(this->state.window, match_length, runsrc, rundest);
+							// aligned bits only
+							uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table.data(), this->state.ALIGNED_len.data(), ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+							match_offset += aligned_bits;
 						}
-					}
+						else if(extra > 0) // extra==1, extra==2
+						{
+							// verbatim bits only
+							uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
+							match_offset += verbatim_bits;
+						}
+						else // extra == 0
+						{
+							// ???
+							match_offset = 1;
+						}
+					});
 					break;
 				}
 
