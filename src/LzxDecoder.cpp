@@ -80,7 +80,7 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 		j += 1 << this->extra_bits[i];
 	}
 
-	/* calculate required position slots */
+	// calculate required position slots
 	uint_fast32_t posn_slots;
 	if(window_bits == 20)
 	{
@@ -222,12 +222,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 			}
 		}
 
-		/* buffer exhaustion check */
+		// buffer exhaustion check
 		if(bitbuf.inpos > inLen)
 		{
-			/*it's possible to have a file where the next run is less than 16 bits in size. In this case, the READ_HUFFSYM() macro used in building
+			/*
+			it's possible to have a file where the next run is less than 16 bits in size. In this case, the READ_HUFFSYM() macro used in building
 			the tables will exhaust the buffer, so we should allow for this, but not allow those accidentally read bits to be used
-			(so we check that there are at least 16 bits remaining - in this boundary case they aren't really part of the compressed data)*/
+			(so we check that there are at least 16 bits remaining - in this boundary case they aren't really part of the compressed data)
+			*/
 			if(bitbuf.inpos > (inLen + 2) || bitbuf.bitsleft < 16)
 			{
 				throw lzx_error("LzxDecoder::Decompress: invalid data");
@@ -262,13 +264,13 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 						if(main_element < NUM_CHARS)
 						{
-							/* literal: 0 to NUM_CHARS-1 */
 							this->state_window[window_posn++] = static_cast<uint8_t>(main_element);
+							// literal: 0 to NUM_CHARS-1
 							--this_run;
 						}
 						else
 						{
-							/* match: NUM_CHARS + ((slot<<3) | length_header (3 bits)) */
+							// match: NUM_CHARS + ((slot<<3) | length_header (3 bits))
 							main_element -= NUM_CHARS;
 
 							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
@@ -295,7 +297,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 									match_offset = 1;
 								}
 
-								/* update repeated offset LRU queue */
+								// update repeated offset LRU queue
 								R2 = R1;
 								R1 = R0;
 								R0 = match_offset;
@@ -361,13 +363,13 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 						if(main_element < NUM_CHARS)
 						{
-							// literal 0 to NUM_CHARS-1
 							this->state_window[window_posn++] = static_cast<uint8_t>(main_element);
+							// literal: 0 to NUM_CHARS-1
 							--this_run;
 						}
 						else
 						{
-							/* match: NUM_CHARS + ((slot<<3) | length_header (3 bits)) */
+							// match: NUM_CHARS + ((slot<<3) | length_header (3 bits))
 							main_element -= NUM_CHARS;
 
 							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
@@ -382,12 +384,12 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 							if(match_offset > 2)
 							{
-								/* not repeated offset */
+								// not repeated offset
 								uint8_t extra = this->extra_bits[match_offset];
 								match_offset = this->position_base[match_offset] - 2;
 								if(extra > 3)
 								{
-									/* verbatim and aligned bits */
+									// verbatim and aligned bits
 									extra -= 3;
 									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
 									match_offset += (verbatim_bits << 3);
@@ -397,23 +399,23 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 								}
 								else if(extra == 3)
 								{
-									/* aligned bits only */
-									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state_ALIGNED_table, this->state_ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+									// aligned bits only
+									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table, this->state.ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
 									match_offset += aligned_bits;
 								}
-								else if(extra > 0) /* extra==1, extra==2 */
+								else if(extra > 0) // extra==1, extra==2
 								{
-									/* verbatim bits only */
+									// verbatim bits only
 									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
 									match_offset += verbatim_bits;
 								}
-								else /* extra == 0 */
+								else // extra == 0
 								{
-									/* ??? */
+									// ???
 									match_offset = 1;
 								}
 
-								/* update repeated offset LRU queue */
+								// update repeated offset LRU queue
 								R2 = R1;
 								R1 = R0;
 								R0 = match_offset;
@@ -428,7 +430,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 								R1 = R0;
 								R0 = match_offset;
 							}
-							else /* match_offset == 2 */
+							else // match_offset == 2
 							{
 								match_offset = R2;
 								R2 = R0;
