@@ -4,7 +4,7 @@
 	<Project>
 		<Option title="libxna" />
 		<Option pch_mode="2" />
-		<Option compiler="gcc" />
+		<Option compiler="clang" />
 		<Build>
 			<Target title="Debug">
 				<Option platforms="Unix;" />
@@ -15,8 +15,6 @@
 				<Option compiler="clang" />
 				<Option createDefFile="1" />
 				<Compiler>
-					<Add option="-ftrapv" />
-					<Add option="-Weverything" />
 					<Add option="-g" />
 					<Add option="-fsanitize=undefined,integer" />
 				</Compiler>
@@ -27,11 +25,11 @@
 				<Option working_dir="" />
 				<Option object_output="obj/Release/" />
 				<Option type="2" />
-				<Option compiler="gcc" />
+				<Option compiler="clang" />
 				<Option createDefFile="1" />
 				<Compiler>
 					<Add option="-fomit-frame-pointer" />
-					<Add option="-O2" />
+					<Add option="-O3" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -39,11 +37,26 @@
 			</Target>
 		</Build>
 		<Compiler>
-			<Add option="-Wextra" />
-			<Add option="-Wall" />
+			<Add option="-pedantic" />
+			<Add option="-Weverything" />
 			<Add option="-std=c++14" />
-			<Add directory="../BinaryLib/include" />
+			<Add directory="../BinaryLib/src" />
+			<Add option="-fno-strict-aliasing" />
 			<Add option="-iquote include" />
+			<Add option="-Wno-c++98-compat-pedantic" />
+			<Add option="-Wno-covered-switch-default" />
+			<Add option="-Wno-missing-prototypes" />
+			<Add option="-Wno-newline-eof" />
+			<Add option="-Wno-padded" />
+			<Add option="-Wno-shadow" />
+			<Add option="-Werror=delete-incomplete" />
+			<Add option="-Werror=deprecated" />
+			<Add option="-Werror=extra-tokens" />
+			<Add option="-Werror=invalid-pp-token" />
+			<Add option="-Werror=return-type" />
+			<Add option="-Werror=uninitialized" />
+			<Add option="-Werror=unknown-pragmas" />
+			<Add option="-Werror=unknown-warning-option" />
 		</Compiler>
 		<Unit filename="include/BitBuffer.hpp" />
 		<Unit filename="include/Content.hpp" />

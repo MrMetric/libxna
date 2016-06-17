@@ -4,7 +4,7 @@
 	<Project>
 		<Option title="convertxnb" />
 		<Option pch_mode="2" />
-		<Option compiler="gcc" />
+		<Option compiler="clang" />
 		<Build>
 			<Target title="Debug">
 				<Option output="bin/Debug/convertxnb" prefix_auto="1" extension_auto="1" />
@@ -13,12 +13,11 @@
 				<Option compiler="clang" />
 				<Compiler>
 					<Add option="-ftrapv" />
-					<Add option="-Weverything" />
 					<Add option="-g" />
 					<Add option="-fsanitize=undefined,integer" />
 				</Compiler>
 				<Linker>
-					<Add option="-lubsan" />
+					<Add option="-fsanitize=undefined,integer" />
 					<Add directory="../../BinaryLib/bin/Debug" />
 					<Add directory="../bin/Debug" />
 				</Linker>
@@ -27,9 +26,10 @@
 				<Option output="bin/Release/convertxnb" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="clang" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-fomit-frame-pointer" />
+					<Add option="-O3" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -39,11 +39,23 @@
 			</Target>
 		</Build>
 		<Compiler>
-			<Add option="-Wextra" />
-			<Add option="-Wall" />
-			<Add option="-fexceptions" />
+			<Add option="-Weverything" />
 			<Add option="-std=c++14" />
-			<Add directory="../../BinaryLib/include" />
+			<Add directory="../../BinaryLib/src" />
+			<Add option="-fexceptions" />
+			<Add option="-Wno-c++98-compat-pedantic" />
+			<Add option="-Wno-newline-eof" />
+			<Add option="-Wno-missing-prototypes" />
+			<Add option="-Wno-shadow" />
+			<Add option="-Wno-padded" />
+			<Add option="-Werror=delete-incomplete" />
+			<Add option="-Werror=deprecated" />
+			<Add option="-Werror=extra-tokens" />
+			<Add option="-Werror=invalid-pp-token" />
+			<Add option="-Werror=return-type" />
+			<Add option="-Werror=uninitialized" />
+			<Add option="-Werror=unknown-pragmas" />
+			<Add option="-Werror=unknown-warning-option" />
 			<Add directory="../include" />
 		</Compiler>
 		<Linker>
