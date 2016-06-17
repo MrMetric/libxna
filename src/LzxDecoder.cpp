@@ -203,10 +203,9 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 				case BLOCKTYPE::UNCOMPRESSED:
 				{
-					bitbuf.EnsureBits(16); // get up to 16 pad bits into the buffer
-					if(bitbuf.bitsleft > 16)
+					if(bitbuf.bitsleft == 0)
 					{
-						bitbuf.inpos -= 2; // align the bitstream
+						bitbuf.EnsureBits(16);
 					}
 					R0 = bitbuf.ReadUInt32();
 					R1 = bitbuf.ReadUInt32();
