@@ -58,12 +58,12 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 		throw lzx_error("LzxDecoder: unsupported window size range: " + std::to_string(window_bits));
 	}
 
-	this->state_window_size = 1 << window_bits;
+	this->state.window_size = 1 << window_bits;
 
 	// let's initialize our state
-	this->state_window = new uint8_t[this->state_window_size];
-	std::fill_n(this->state_window, this->state_window_size, 0xDC);
-	this->state_window_posn = 0;
+	this->state.window = new uint8_t[this->state.window_size];
+	std::fill_n(this->state.window, this->state.window_size, 0xDC);
+	this->state.window_posn = 0;
 
 	// initialize tables
 	for(uint_fast32_t i = 0, j = 0; i <= 50; i += 2)
@@ -97,20 +97,20 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	}
 
 	// reset state
-	this->state_R0 = this->state_R1 = this->state_R2 = 1;
-	this->state_main_elements = static_cast<uint16_t>(NUM_CHARS + (posn_slots * 8));
-	this->state_header_read = false;
-	this->state_block_remaining = 0;
-	this->state_block_type = BLOCKTYPE::INVALID;
+	this->state.R0 = this->state.R1 = this->state.R2 = 1;
+	this->state.main_elements = static_cast<uint16_t>(NUM_CHARS + (posn_slots * 8));
+	this->state.header_read = false;
+	this->state.block_remaining = 0;
+	this->state.block_type = BLOCKTYPE::INVALID;
 
 	// initialize tables to 0 (because deltas will be applied to them)
-	std::fill_n(this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, 0);
-	std::fill_n(this->state_LENGTH_len, LENGTH_MAXSYMBOLS, 0);
+	std::fill_n(this->state.MAINTREE_len, MAINTREE_MAXSYMBOLS, 0);
+	std::fill_n(this->state.LENGTH_len, LENGTH_MAXSYMBOLS, 0);
 }
 
 LzxDecoder::~LzxDecoder()
 {
-	delete[] this->state_window;
+	delete[] this->state.window;
 }
 
 void copy_n_safe(uint8_t* buf, uint_fast32_t len, uint_fast32_t src, uint_fast32_t& dest)
@@ -145,21 +145,21 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 {
 	BitBuffer bitbuf(inBuf, inLen);
 
-	uint_fast32_t window_posn = this->state_window_posn;
-	const uint_fast32_t window_size = this->state_window_size;
-	uint_fast32_t R0 = this->state_R0;
-	uint_fast32_t R1 = this->state_R1;
-	uint_fast32_t R2 = this->state_R2;
+	uint_fast32_t window_posn = this->state.window_posn;
+	const uint_fast32_t window_size = this->state.window_size;
+	uint_fast32_t R0 = this->state.R0;
+	uint_fast32_t R1 = this->state.R1;
+	uint_fast32_t R2 = this->state.R2;
 
 	// read header if necessary
-	if(!this->state_header_read)
+	if(!this->state.header_read)
 	{
 		const uint32_t intel = bitbuf.ReadBits(1);
 		if(intel != 0)
 		{
 			throw lzx_error("LzxDecoder::Decompress: Intel E8 not supported");
 		}
-		this->state_header_read = true;
+		this->state.header_read = true;
 	}
 
 	// main decoding loop
@@ -167,23 +167,23 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 	while(togo > 0)
 	{
 		// last block finished, new block expected
-		if(this->state_block_remaining == 0)
+		if(this->state.block_remaining == 0)
 		{
-			this->state_block_type = static_cast<BLOCKTYPE>(bitbuf.ReadBits(3));
+			this->state.block_type = static_cast<BLOCKTYPE>(bitbuf.ReadBits(3));
 
 			const uint32_t hi = bitbuf.ReadBits(16);
 			const uint32_t lo = bitbuf.ReadBits(8);
-			this->state_block_remaining = this->state_block_length = static_cast<uint32_t>((hi << 8) | lo);
+			this->state.block_remaining = this->state.block_length = static_cast<uint32_t>((hi << 8) | lo);
 
-			switch(this->state_block_type)
+			switch(this->state.block_type)
 			{
 				case BLOCKTYPE::ALIGNED:
 				{
 					for(uint_fast32_t i = 0; i < 8; ++i)
 					{
-						this->state_ALIGNED_len[i] = static_cast<uint8_t>(bitbuf.ReadBits(3));
+						this->state.ALIGNED_len[i] = static_cast<uint8_t>(bitbuf.ReadBits(3));
 					}
-					this->MakeDecodeTable(ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, this->state_ALIGNED_len, this->state_ALIGNED_table);
+					this->MakeDecodeTable(ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, this->state.ALIGNED_len, this->state.ALIGNED_table);
 					// rest of aligned header is same as verbatim
 					#ifdef __clang__
 					[[clang::fallthrough]];
@@ -192,12 +192,12 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 
 				case BLOCKTYPE::VERBATIM:
 				{
-					this->ReadLengths(this->state_MAINTREE_len, 0, 256, bitbuf);
-					this->ReadLengths(this->state_MAINTREE_len, 256, this->state_main_elements, bitbuf);
-					this->MakeDecodeTable(MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, this->state_MAINTREE_len, this->state_MAINTREE_table);
+					this->ReadLengths(this->state.MAINTREE_len, 0, 256, bitbuf);
+					this->ReadLengths(this->state.MAINTREE_len, 256, this->state.main_elements, bitbuf);
+					this->MakeDecodeTable(MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, this->state.MAINTREE_len, this->state.MAINTREE_table);
 
-					this->ReadLengths(this->state_LENGTH_len, 0, NUM_SECONDARY_LENGTHS, bitbuf);
-					this->MakeDecodeTable(LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, this->state_LENGTH_len, this->state_LENGTH_table);
+					this->ReadLengths(this->state.LENGTH_len, 0, NUM_SECONDARY_LENGTHS, bitbuf);
+					this->MakeDecodeTable(LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, this->state.LENGTH_len, this->state.LENGTH_table);
 					break;
 				}
 
@@ -217,7 +217,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw lzx_error("LzxDecoder::Decompress: invalid state block type:  " + to_string(this->state_block_type));
+					throw lzx_error("LzxDecoder::Decompress: invalid state block type:  " + to_string(this->state.block_type));
 				}
 			}
 		}
@@ -237,14 +237,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 		}
 
 		uint_fast32_t this_run;
-		while((this_run = this->state_block_remaining) > 0 && togo > 0)
+		while((this_run = this->state.block_remaining) > 0 && togo > 0)
 		{
 			if(this_run > togo)
 			{
 				this_run = togo;
 			}
 			togo -= this_run;
-			this->state_block_remaining -= this_run;
+			this->state.block_remaining -= this_run;
 
 			// apply 2^x-1 mask
 			window_posn &= window_size - 1;
@@ -254,18 +254,18 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				throw lzx_error("LzxDecoder::Decompress: invalid data (window position + this_run > window size)");
 			}
 
-			switch(this->state_block_type)
+			switch(this->state.block_type)
 			{
 				case BLOCKTYPE::VERBATIM:
 				{
 					while(this_run > 0)
 					{
-						uint32_t main_element = this->ReadHuffSym(this->state_MAINTREE_table, this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table, this->state.MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
 
 						if(main_element < NUM_CHARS)
 						{
-							this->state_window[window_posn++] = static_cast<uint8_t>(main_element);
 							// literal: 0 to NUM_CHARS-1
+							this->state.window[window_posn++] = static_cast<uint8_t>(main_element);
 							--this_run;
 						}
 						else
@@ -276,7 +276,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
 							if(match_length == NUM_PRIMARY_LENGTHS)
 							{
-								uint_fast32_t length_footer = this->ReadHuffSym(this->state_LENGTH_table, this->state_LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table, this->state.LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
 								match_length += length_footer;
 							}
 							match_length += MIN_MATCH;
@@ -342,14 +342,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 								{
 									match_length -= copy_length;
 									window_posn += copy_length;
-									copy_n_safe(this->state_window, copy_length, runsrc, rundest);
+									copy_n_safe(this->state.window, copy_length, runsrc, rundest);
 									runsrc = 0;
 								}
 							}
 							window_posn += match_length;
 
 							// copy match data
-							copy_n_safe(this->state_window, match_length, runsrc, rundest);
+							copy_n_safe(this->state.window, match_length, runsrc, rundest);
 						}
 					}
 					break;
@@ -359,12 +359,12 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				{
 					while(this_run > 0)
 					{
-						uint32_t main_element = this->ReadHuffSym(this->state_MAINTREE_table, this->state_MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
+						uint32_t main_element = this->ReadHuffSym(this->state.MAINTREE_table, this->state.MAINTREE_len, MAINTREE_MAXSYMBOLS, MAINTREE_TABLEBITS, bitbuf);
 
 						if(main_element < NUM_CHARS)
 						{
-							this->state_window[window_posn++] = static_cast<uint8_t>(main_element);
 							// literal: 0 to NUM_CHARS-1
+							this->state.window[window_posn++] = static_cast<uint8_t>(main_element);
 							--this_run;
 						}
 						else
@@ -375,7 +375,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 							uint_fast32_t match_length = main_element & NUM_PRIMARY_LENGTHS;
 							if(match_length == NUM_PRIMARY_LENGTHS)
 							{
-								uint_fast32_t length_footer = this->ReadHuffSym(this->state_LENGTH_table, this->state_LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
+								uint_fast32_t length_footer = this->ReadHuffSym(this->state.LENGTH_table, this->state.LENGTH_len, LENGTH_MAXSYMBOLS, LENGTH_TABLEBITS, bitbuf);
 								match_length += length_footer;
 							}
 							match_length += MIN_MATCH;
@@ -394,7 +394,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 									uint_fast32_t verbatim_bits = bitbuf.ReadBits(extra);
 									match_offset += (verbatim_bits << 3);
 
-									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state_ALIGNED_table, this->state_ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
+									uint_fast32_t aligned_bits = this->ReadHuffSym(this->state.ALIGNED_table, this->state.ALIGNED_len, ALIGNED_MAXSYMBOLS, ALIGNED_TABLEBITS, bitbuf);
 									match_offset += aligned_bits;
 								}
 								else if(extra == 3)
@@ -460,14 +460,14 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 								{
 									match_length -= copy_length;
 									window_posn += copy_length;
-									copy_n_safe(this->state_window, copy_length, runsrc, rundest);
+									copy_n_safe(this->state.window, copy_length, runsrc, rundest);
 									runsrc = 0;
 								}
 							}
 							window_posn += match_length;
 
 							// copy match data
-							copy_n_safe(this->state_window, match_length, runsrc, rundest);
+							copy_n_safe(this->state.window, match_length, runsrc, rundest);
 						}
 					}
 					break;
@@ -480,7 +480,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 						throw lzx_error("LzxDecoder::Decompress: invalid data (bitbuf.inpos + this_run > endpos)");
 					}
 
-					std::copy_n(inBuf + bitbuf.inpos, this_run, this->state_window + window_posn);
+					std::copy_n(inBuf + bitbuf.inpos, this_run, this->state.window + window_posn);
 					bitbuf.inpos += this_run;
 					window_posn += this_run;
 					break;
@@ -489,7 +489,7 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 				case BLOCKTYPE::INVALID:
 				default:
 				{
-					throw lzx_error("LzxDecoder::Decompress: invalid state block type: " + to_string(this->state_block_type));
+					throw lzx_error("LzxDecoder::Decompress: invalid state block type: " + to_string(this->state.block_type));
 				}
 			}
 		}
@@ -509,12 +509,12 @@ void LzxDecoder::Decompress(const uint8_t* inBuf, const uint_fast32_t inLen, uin
 		throw lzx_error("LzxDecoder::Decompress: invalid data (start_window_pos < outLen)");
 	}
 	start_window_pos -= outLen;
-	std::copy_n(this->state_window + start_window_pos, outLen, outBuf);
+	std::copy_n(this->state.window + start_window_pos, outLen, outBuf);
 
-	this->state_window_posn = window_posn;
-	this->state_R0 = R0;
-	this->state_R1 = R1;
-	this->state_R2 = R2;
+	this->state.window_posn = window_posn;
+	this->state.R0 = R0;
+	this->state.R1 = R1;
+	this->state.R2 = R2;
 }
 
 void LzxDecoder::MakeDecodeTable(uint16_t nsyms, uint8_t nbits, uint8_t length[], uint16_t table[])
@@ -621,13 +621,13 @@ void LzxDecoder::ReadLengths(uint8_t lens[], const uint_fast32_t first, const ui
 
 	for(uint_fast32_t x = 0; x < PRETREE_MAXSYMBOLS; ++x)
 	{
-		this->state_PRETREE_len[x] = static_cast<uint8_t>(bitbuf.ReadBits(4));
+		this->state.PRETREE_len[x] = static_cast<uint8_t>(bitbuf.ReadBits(4));
 	}
-	this->MakeDecodeTable(PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, this->state_PRETREE_len, this->state_PRETREE_table);
+	this->MakeDecodeTable(PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, this->state.PRETREE_len, this->state.PRETREE_table);
 
 	for(uint_fast32_t x = first; x < last; )
 	{
-		int_fast32_t z = this->ReadHuffSym(this->state_PRETREE_table, this->state_PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
+		int_fast32_t z = this->ReadHuffSym(this->state.PRETREE_table, this->state.PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
 		if(z == 17)
 		{
 			uint_fast32_t y = bitbuf.ReadBits(4);
@@ -646,7 +646,7 @@ void LzxDecoder::ReadLengths(uint8_t lens[], const uint_fast32_t first, const ui
 		{
 			uint_fast32_t y = bitbuf.ReadBits(1);
 			y += 4;
-			z = ReadHuffSym(this->state_PRETREE_table, this->state_PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
+			z = ReadHuffSym(this->state.PRETREE_table, this->state.PRETREE_len, PRETREE_MAXSYMBOLS, PRETREE_TABLEBITS, bitbuf);
 			z = lens[x] - z;
 			if(z < 0)
 			{

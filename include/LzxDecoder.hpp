@@ -48,23 +48,30 @@ class LzxDecoder
 		};
 		static std::string to_string(BLOCKTYPE);
 
-		uint_fast32_t		state_R0, state_R1, state_R2; 	// for the LRU offset system
-		uint16_t			state_main_elements;			// number of main tree elements
-		bool				state_header_read;				// have we started decoding at all yet?
-		BLOCKTYPE			state_block_type;				// type of this block
-		uint32_t			state_block_length;				// uncompressed length of this block
-		uint32_t			state_block_remaining;			// uncompressed bytes still left to decode
+		struct
+		{
+			uint8_t*			window;
+			uint_fast32_t		window_size;
+			uint_fast32_t		window_posn;
 
-		uint16_t			state_PRETREE_table[(1 << PRETREE_TABLEBITS) + (PRETREE_MAXSYMBOLS << 1)];
-		uint8_t				state_PRETREE_len[PRETREE_MAXSYMBOLS];
-		uint16_t			state_MAINTREE_table[(1 << MAINTREE_TABLEBITS) + (MAINTREE_MAXSYMBOLS << 1)];
-		uint8_t				state_MAINTREE_len[MAINTREE_MAXSYMBOLS];
-		uint16_t			state_LENGTH_table[(1 << LENGTH_TABLEBITS) + (LENGTH_MAXSYMBOLS << 1)];
-		uint8_t				state_LENGTH_len[LENGTH_MAXSYMBOLS];
-		uint16_t			state_ALIGNED_table[(1 << ALIGNED_TABLEBITS) + (ALIGNED_MAXSYMBOLS << 1)];
-		uint8_t				state_ALIGNED_len[ALIGNED_MAXSYMBOLS];
+			uint_fast32_t		R0, R1, R2; 		// for the LRU offset system
+			uint16_t			main_elements;		// number of main tree elements
+			bool				header_read;		// have we started decoding at all yet?
+			BLOCKTYPE			block_type;			// type of this block
+			uint32_t			block_length;		// uncompressed length of this block
+			uint32_t			block_remaining;	// uncompressed bytes still left to decode
 
-		uint8_t*			state_window;
-		uint_fast32_t		state_window_size;
-		uint_fast32_t		state_window_posn;
+			uint8_t				PRETREE_len[PRETREE_MAXSYMBOLS];
+			uint16_t			PRETREE_table[(1 << PRETREE_TABLEBITS) + (PRETREE_MAXSYMBOLS << 1)];
+
+			uint8_t				MAINTREE_len[MAINTREE_MAXSYMBOLS];
+			uint16_t			MAINTREE_table[(1 << MAINTREE_TABLEBITS) + (MAINTREE_MAXSYMBOLS << 1)];
+
+			uint8_t				LENGTH_len[LENGTH_MAXSYMBOLS];
+			uint16_t			LENGTH_table[(1 << LENGTH_TABLEBITS) + (LENGTH_MAXSYMBOLS << 1)];
+
+			uint8_t				ALIGNED_len[ALIGNED_MAXSYMBOLS];
+			uint16_t			ALIGNED_table[(1 << ALIGNED_TABLEBITS) + (ALIGNED_MAXSYMBOLS << 1)];
+
+		} state;
 };
