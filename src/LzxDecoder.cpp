@@ -77,7 +77,7 @@ LzxDecoder::LzxDecoder(const uint_fast16_t window_bits)
 	}
 	for(uint_fast32_t i = 0, j = 0; i <= 50; ++i)
 	{
-		this->position_base[i] = j;
+		this->position_base[i] = static_cast<uint32_t>(j);
 		j += 1 << this->extra_bits[i];
 	}
 
