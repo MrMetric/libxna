@@ -86,6 +86,9 @@ class Sound : public ContentBase
 		uint16_t bits_per_sample;
 		std::vector<uint8_t> data;
 		SoundFormat format;
+		uint32_t loop_start; // bytes
+		uint32_t loop_length; // bytes
+		uint32_t loop_duration; // milliseconds
 
 		void write(BinaryWriter& writer);
 

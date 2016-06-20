@@ -186,10 +186,10 @@ void Sound::read(BinaryReader& reader)
 	std::unique_ptr<uint8_t[]> data_ptr(reader.ReadBytes(data_size));
 	this->data = std::vector<uint8_t>(data_ptr.get(), data_ptr.get() + data_size);
 
-	const uint32_t loop_start = reader.ReadUInt32();
-	const uint32_t loop_end = reader.ReadUInt32();
-	const uint32_t duration_ms = reader.ReadUInt32();
-	// TODO
+	// TOOD: start and length 'must be format block aligned'
+	this->loop_start = reader.ReadUInt32();
+	this->loop_length = reader.ReadUInt32();
+	this->loop_duration = reader.ReadUInt32();
 }
 
 
