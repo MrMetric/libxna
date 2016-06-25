@@ -46,7 +46,6 @@
 			<Add option="-Wno-c++98-compat-pedantic" />
 			<Add option="-Wno-covered-switch-default" />
 			<Add option="-Wno-missing-prototypes" />
-			<Add option="-Wno-newline-eof" />
 			<Add option="-Wno-padded" />
 			<Add option="-Wno-shadow" />
 			<Add option="-Werror=delete-incomplete" />
